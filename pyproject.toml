@@ -11,3 +11,8 @@ dependencies = [
     "requests>=2.32.3",
     "scikit-learn>=1.6.1",
 ]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=6.29.5",
+]
