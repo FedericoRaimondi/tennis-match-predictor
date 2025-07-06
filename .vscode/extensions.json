@@ -1,0 +1,14 @@
+{
+    "recommendations": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "akamud.vscode-theme-onedark",
+        "PKief.material-icon-theme",
+        "charliermarsh.ruff",
+        "ms-toolsai.jupyter",
+        "aaron-bond.better-comments",
+        "christian-kohler.path-intellisense",
+        "mhutchie.git-graph",
+        "ms-azuretools.vscode-containers"
+    ]
+}
