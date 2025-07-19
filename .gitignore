@@ -177,3 +177,7 @@ cython_debug/
 ._.DS_Store
 **/.DS_Store
 **/._.DS_Stores
+
+# Ignore player stats data files
+data/player_stats_hist.pkl
+data/ml_dataset.pkl
