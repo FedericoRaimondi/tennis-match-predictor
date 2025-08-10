@@ -5,14 +5,17 @@ description = "Tennis match predictor app"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "fastapi>=0.116.1",
     "matplotlib>=3.10.3",
-    "numpy>=2.2.5",
-    "pandas>=2.2.3",
-    "requests>=2.32.3",
-    "scikit-learn>=1.6.1",
+    "mlflow==3.1.4",
+    "numpy==2.2.5",
+    "pandas==2.2.3",
+    "requests==2.32.3",
+    "scikit-learn==1.6.1",
+    "xgboost==3.0.2",
 ]
 
 [dependency-groups]
 dev = [
-    "ipykernel>=6.29.5",
+    "ipykernel==6.29.5",
 ]
