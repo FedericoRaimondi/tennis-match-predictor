@@ -181,6 +181,7 @@ cython_debug/
 # Ignore player stats data files
 data/player_stats_hist.pkl
 data/ml_dataset.pkl
+data/matches_results.pkl
 
 # Ignore MLflow tracking files
 mlruns/*
