@@ -17,15 +17,15 @@ def add_rolling_stats(
 ) -> pd.DataFrame:
     """Add rolling statistics to a DataFrame for each player.
 
-    Parameters:
-        df (pd.DataFrame): The input DataFrame
-        player_id_col (str): Column name for player identification
-        sort_cols (List[str]): Columns to sort by to ensure proper chronological order
-        stats_columns (Union[str, List[str], None]): Column(s) to calculate rolling statistics for
-        agg_type (str): Type of aggregation ('mean', 'sum', 'std', 'min', 'max', 'median')
-        window (int): Number of periods for the rolling window
-        min_periods (int): Minimum number of observations required to have a value
-        shift_periods (int): Number of periods to shift (1 = exclude current match, 0 = include current match)
+    Args:
+        df: Input DataFrame containing match data.
+        stats_columns: Column name or list of column names to calculate rolling statistics on.
+        agg_type: Type of aggregation ('mean', 'sum', 'std', 'min', 'max', 'median').
+        window: Size of the rolling window.
+        min_periods: Minimum number of observations in window required to have a value.
+        shift_periods: Number of periods to shift the result (to avoid data leakage).
+        group_col: Column name to group by (e.g., player identifier).
+        sort_cols: List of columns to sort by for chronological order.
 
     Returns:
         pd.DataFrame: DataFrame with added rolling statistics columns
@@ -77,7 +77,61 @@ def add_rolling_stats(
     return result_df
 
 
-def calculate_elo():
-    """Calculate Elo ratings for players based on match outcomes."""
-    # TODO: Implement Elo rating calculation
-    pass  # pragma: no cover
+def calculate_elo(
+    df: pd.DataFrame,
+    player_col: str = "player_id",
+    opponent_col: str = "opponent_id",
+    result_col: str = "results",
+    k: float = 32,
+    base_elo: float = 1500,
+    sort_cols: list = ["player_id", "tourney_date", "tourney_id", "match_num"],  # noqa: B006
+) -> pd.DataFrame:
+    """Calculate Elo ratings for players based on match outcomes.
+
+    Args:
+        df (pd.DataFrame): DataFrame with at least player_id, opponent_id, results, and match order columns.
+        player_col (str): Column name for player ID.
+        opponent_col (str): Column name for opponent ID.
+        result_col (str): Column name for match result (1=win, 0=loss).
+        k (float): Elo K-factor.
+        base_elo (float): Starting Elo for new players.
+        sort_cols (list): Columns to sort by for chronological order.
+
+    Returns:
+        pd.DataFrame: DataFrame with an added 'elo_before' and 'elo_after' column for each match.
+    """
+    df = df.copy()
+    df = df.sort_values(by=sort_cols).reset_index(drop=True)
+
+    # Store Elo ratings
+    elo_dict = {}
+
+    elo_before = []
+    elo_after = []
+
+    for idx, row in df.iterrows():
+        p1 = row[player_col]
+        p2 = row[opponent_col]
+        result = row[result_col]
+
+        # Get current Elo or assign base
+        elo_p1 = elo_dict.get(p1, base_elo)
+        elo_p2 = elo_dict.get(p2, base_elo)
+
+        # Expected score
+        expected_p1 = 1 / (1 + 10 ** ((elo_p2 - elo_p1) / 400))
+
+        # Update Elo
+        new_elo_p1 = elo_p1 + k * (result - expected_p1)
+        new_elo_p2 = elo_p2 + k * ((1 - result) - (1 - expected_p1))
+
+        elo_before.append(elo_p1)
+        elo_after.append(new_elo_p1)
+
+        # Save new ratings
+        elo_dict[p1] = new_elo_p1
+        elo_dict[p2] = new_elo_p2
+
+    df["elo_rating"] = elo_before
+    # df["elo_after"] = elo_after
+    return df

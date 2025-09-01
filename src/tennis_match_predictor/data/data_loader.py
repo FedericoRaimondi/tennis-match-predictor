@@ -7,7 +7,7 @@ import pandas as pd
 from loguru import logger
 
 from tennis_match_predictor.utils.gh_utils import list_github_files, read_csv_from_github
-from tennis_match_predictor.utils.stats_helpers import add_rolling_stats
+from tennis_match_predictor.utils.stats_helpers import add_rolling_stats, calculate_elo
 
 
 class DataLoader:
@@ -234,6 +234,13 @@ class DataLoader:
                 player_stats_hist_df, stats_columns=cols_to_sum, agg_type="sum", window=i
             )
 
+        # add elo rating
+        self.logger.info("Calculating elo ratings...")
+        player_stats_hist_df = calculate_elo(player_stats_hist_df)
+
+        # drop original cols_to_mean and cols_to_sum to avoid data leakage
+        player_stats_hist_df = player_stats_hist_df.drop(columns=cols_to_mean + cols_to_sum)
+
         # If latest is True, return only the latest statistics for each player
         if latest:
             self.logger.info("Extracting latest statistics for each player...")
@@ -332,7 +339,6 @@ class DataLoader:
             suffixes=("", "_t"),
         )
 
-        # TODO: some basic cleaning
         self.logger.info("Dataset preparation complete.")
         self.logger.info(f"Final dataset shape: {ml_dataset.shape}")
 
