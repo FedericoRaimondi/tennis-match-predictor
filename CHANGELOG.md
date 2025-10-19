@@ -16,9 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Hyperparameter tuning using Optuna
   - Model training with MLflow tracking
   - Data and model drift monitoring with Evidently
+  - Prefect flows for workflow orchestration (training and monitoring)
 - Pydantic-based configuration management:
-  - `config/data_config.py` for data source and feature configuration
-  - `config/model_config.py` for model and training configuration
+  - `src/match_predictor/config.py` for Pydantic configuration classes
+  - `config/data_config.yaml` for data source and feature configuration
+  - `config/model_config.yaml` for model and training configuration
 - Docker support:
   - Multi-stage Dockerfile for API, Streamlit, and development
   - `docker-compose.yml` for orchestrating all services
@@ -27,7 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - CD workflow for deployment to Cloud Run and Streamlit Cloud
   - Training workflow for automated model retraining
   - Monitoring workflow for drift detection and alerting
-- Comprehensive test suite (49+ tests):
+  - Documentation workflow for deploying docs to GitHub Pages
+- Comprehensive test suite (61+ tests):
   - API endpoint tests
   - Configuration validation tests
   - Feature engineering tests
@@ -43,11 +46,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `scripts/run_streamlit.sh` for starting the Streamlit app
   - `scripts/run_tests.sh` for running tests with coverage
   - `scripts/build_docs.sh` for building/serving documentation
+- Entrypoint scripts:
+  - `train-model` for running training pipeline with Prefect
+  - `monitor-model` for running monitoring pipeline with Prefect
+- Jupyter notebooks for exploration:
+  - `notebook/tennis_eda.ipynb` for exploratory data analysis
+  - `notebook/data_engineering.ipynb` for feature engineering experiments
+  - `notebook/ml_experimenting.ipynb` for model experimentation
 - Additional dependencies:
   - streamlit for interactive UI
   - pydantic and pydantic-settings for configuration
   - evidently for drift monitoring
   - optuna for hyperparameter tuning
+  - prefect for workflow orchestration
   - plotly for visualizations
   - httpx for async HTTP requests
   - mkdocs and mkdocs-material for documentation
