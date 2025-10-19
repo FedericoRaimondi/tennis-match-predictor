@@ -154,60 +154,64 @@ async def predict_winner(request: PredictRequest) -> PredictResponse:
             surface = latest_tournament.get("surface", "Hard")
             tourney_level = latest_tournament.get("tourney_level", "A")
 
-        # Construct inference features
-        # Combine player1 stats, player2 stats, and tournament info
+        # Construct inference data matching the training data structure from get_ml_data()
         from match_predictor.ml_pipeline.feature_engineering import FeatureEngineer
         
-        # Create a row similar to training data structure
-        inference_row = {
-            # Player 1 stats (these columns come from get_player_stats)
-            "player_1": player1_latest.get("player_id"),
-            "player_2": player2_latest.get("player_id"),
-            "player_name": request.player1,
-            "opponent_name": request.player2,
-            "surface": surface,
-            "tourney_level": tourney_level,
-        }
+        # Create a minimal inference row matching get_ml_data() structure
+        # We need player_1, player_2, and tournament columns, then merge stats
+        inference_base = pd.DataFrame([{
+            "tourney_id": tournament_data.iloc[-1]["tourney_id"] if not tournament_data.empty else "UNK",
+            "tourney_date": pd.Timestamp.now(),
+            "match_num": 1,
+            "player_1": player1_latest["player_id"],
+            "player_2": player2_latest["player_id"],
+        }])
         
-        # Add all player stats with proper suffixes
-        for col in player1_latest.index:
-            if col.startswith("player_") or col.startswith("p_") or col.startswith("elo") or col in ["player_rank", "player_rank_points", "player_age", "player_hand", "player_ht", "player_ioc"]:
-                inference_row[col] = player1_latest[col]
-            if col.startswith("opponent_") or col.startswith("o_"):
-                # For player 2, we'll add these from player2_latest but as opponent stats
-                pass
+        # Merge player 1 stats (no suffix, same as training)
+        player1_stats_df = player1_latest.to_frame().T
+        inference_df = inference_base.merge(
+            player1_stats_df,
+            left_on="player_1",
+            right_on="player_id",
+            how="left",
+            suffixes=("", "_p1")
+        )
         
-        # Add player 2 stats as opponent for player 1's perspective
-        for col in player2_latest.index:
-            if col.startswith("player_"):
-                new_col = col.replace("player_", "opponent_")
-                inference_row[new_col] = player2_latest[col]
-            elif col.startswith("p_"):
-                new_col = col.replace("p_", "o_")
-                inference_row[new_col] = player2_latest[col]
-
-        # Create DataFrame with single row for inference
-        inference_df = pd.DataFrame([inference_row])
+        # Merge player 2 stats (with _p2 suffix, same as training)
+        player2_stats_df = player2_latest.to_frame().T
+        inference_df = inference_df.merge(
+            player2_stats_df,
+            left_on="player_2",
+            right_on="player_id",
+            how="left",
+            suffixes=("", "_p2")
+        )
         
-        # Apply feature engineering
+        # Merge tournament info (with _t suffix, same as training)
+        if not tournament_data.empty:
+            tournament_df = tournament_data.iloc[[-1]]
+            inference_df = inference_df.merge(
+                tournament_df,
+                left_on="tourney_id",
+                right_on="tourney_id",
+                how="left",
+                suffixes=("", "_t")
+            )
+        else:
+            # Add default tournament columns if not found
+            inference_df["surface"] = surface
+            inference_df["tourney_level"] = tourney_level
+        
+        # Apply feature engineering (same as training)
         feature_engineer = FeatureEngineer()
         inference_df_engineered = feature_engineer.engineer_features(inference_df)
         
-        # Get features (without target since we're predicting)
-        feature_names = feature_engineer.get_feature_names(inference_df_engineered)
+        # Prepare features for prediction (same as training)
+        X_inference, _ = feature_engineer.prepare_features_for_training(inference_df_engineered.assign(winner=0))
         
-        # Prepare features - ensure all expected columns exist
-        X_inference = pd.DataFrame()
-        for col in feature_names:
-            if col in inference_df_engineered.columns:
-                X_inference[col] = inference_df_engineered[col]
-            else:
-                # Fill missing features with 0 or appropriate default
-                X_inference[col] = 0
-        
-        # Convert categorical columns to numeric
-        for col in X_inference.select_dtypes(include=["object", "category"]).columns:
-            X_inference[col] = pd.Categorical(X_inference[col]).codes
+        # Remove the dummy winner column if it exists
+        if "winner" in X_inference.columns:
+            X_inference = X_inference.drop(columns=["winner"])
 
         # Make prediction
         probabilities = clf.predict_proba(X_inference)[0]

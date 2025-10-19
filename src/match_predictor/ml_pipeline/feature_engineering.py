@@ -105,7 +105,18 @@ class FeatureEngineer:
         # exclude datetime64[ns]
         date_columns = df.select_dtypes(include="datetime64[ns]").columns.tolist()
 
-        feature_columns = [col for col in df.columns if col not in exclude_columns + date_columns]
+        # Also exclude columns with suffixes like _p1, _p2, _t for metadata columns
+        exclude_patterns = ["tourney_id", "tourney_date", "match_num", "player_id", "opponent_id"]
+        
+        feature_columns = []
+        for col in df.columns:
+            # Skip if column is in exclude list
+            if col in exclude_columns + date_columns:
+                continue
+            # Skip if column matches any exclusion pattern with suffix
+            if any(col.startswith(pattern + "_") for pattern in exclude_patterns):
+                continue
+            feature_columns.append(col)
 
         # Check if target exists
         if "winner" not in df.columns:
@@ -150,6 +161,17 @@ class FeatureEngineer:
         # exclude datetime64[ns]
         date_columns = df.select_dtypes(include="datetime64[ns]").columns.tolist()
 
-        feature_columns = [col for col in df.columns if col not in exclude_columns + date_columns]
+        # Also exclude columns with suffixes like _p1, _p2, _t for metadata columns
+        exclude_patterns = ["tourney_id", "tourney_date", "match_num", "player_id", "opponent_id"]
+        
+        feature_columns = []
+        for col in df.columns:
+            # Skip if column is in exclude list
+            if col in exclude_columns + date_columns:
+                continue
+            # Skip if column matches any exclusion pattern with suffix
+            if any(col.startswith(pattern + "_") for pattern in exclude_patterns):
+                continue
+            feature_columns.append(col)
 
         return feature_columns
