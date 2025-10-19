@@ -54,6 +54,12 @@ build-backend = "uv_build"
 addopts = "--verbosity=2 --cov=match_predictor --cov-report html"
 pythonpath = ["src"]
 
+[tool.coverage.run]
+omit = [
+    "*/app/main.py",  # Streamlit app - UI testing not in scope
+    "*/main.py",      # Entry point - minimal logic
+]
+
 [tool.ruff]
 line-length = 120
 
