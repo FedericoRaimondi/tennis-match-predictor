@@ -20,6 +20,7 @@ A complete end-to-end machine learning system for predicting tennis match outcom
 - **Interactive UI**: Streamlit app with visualizations and insights
 
 ### 📊 MLOps Pipeline
+- **Workflow Orchestration**: Prefect flows for training and monitoring
 - **Automated Training**: Hyperparameter tuning with Optuna
 - **Model Monitoring**: Data drift detection with Evidently
 - **Version Control**: MLflow for experiment tracking
@@ -55,6 +56,7 @@ A complete end-to-end machine learning system for predicting tennis match outcom
                 ▼
 ┌───────────────────────────────────────────────────────────────────┐
 │                        MLOps Pipeline                             │
+│                    (Orchestrated by Prefect)                      │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐        │
 │  │ Training │→ │  Tuning  │→ │Evaluation│→ │Deployment│        │
 │  └──────────┘  └──────────┘  └──────────┘  └──────────┘        │
@@ -82,7 +84,8 @@ A complete end-to-end machine learning system for predicting tennis match outcom
 │       │   ├── feature_engineering.py
 │       │   ├── training.py
 │       │   ├── hyperparameter_tuning.py
-│       │   └── monitoring.py
+│       │   ├── monitoring.py
+│       │   └── flows.py        # Prefect workflows
 │       ├── data/                # Data loading utilities
 │       │   └── data_loader.py
 │       ├── model/               # Model classes
@@ -101,7 +104,10 @@ A complete end-to-end machine learning system for predicting tennis match outcom
 │   ├── test_api.py
 │   ├── test_config.py
 │   ├── test_data_loader.py
-│   └── test_feature_engineering.py
+│   ├── test_feature_engineering.py
+│   ├── test_flows.py
+│   ├── test_gh_utils.py
+│   └── test_stats_helpers.py
 │
 ├── data/                        # Inference data only
 │   ├── matches_results.pkl
@@ -109,6 +115,11 @@ A complete end-to-end machine learning system for predicting tennis match outcom
 │
 ├── models/                      # Champion model storage
 │   └── .gitkeep
+│
+├── notebook/                    # Jupyter notebooks for exploration
+│   ├── tennis_eda.ipynb        # Exploratory data analysis
+│   ├── data_engineering.ipynb  # Feature engineering experiments
+│   └── ml_experimenting.ipynb  # Model experimentation
 │
 ├── docs/                        # MkDocs documentation
 │   ├── index.md
@@ -119,7 +130,8 @@ A complete end-to-end machine learning system for predicting tennis match outcom
 │       ├── ci.yml              # Tests and linting
 │       ├── cd.yml              # Deployment
 │       ├── training.yml        # Model training
-│       └── monitoring.yml      # Model monitoring
+│       ├── monitoring.yml      # Model monitoring
+│       └── docs.yml            # Documentation deployment
 │
 ├── Dockerfile                   # Multi-stage Docker setup
 ├── docker-compose.yml           # Multi-service orchestration
@@ -286,13 +298,25 @@ The training pipeline includes:
 4. **Model Evaluation**: Validate on test set
 5. **Model Deployment**: Promote to champion if accuracy > threshold
 
-Run manually:
+Run using Prefect flow (recommended):
+```bash
+# Using the entrypoint script
+uv run train-model
+
+# Or run the flow directly
+uv run python -c "
+from match_predictor.ml_pipeline.flows import run_training_flow
+run_training_flow()
+"
+```
+
+Or run manually without Prefect:
 ```bash
 uv run python -c "
 from match_predictor.ml_pipeline.training import ModelTrainer
-from config.model_config import ModelConfig
+from match_predictor.config import ModelConfig
 
-trainer = ModelTrainer(ModelConfig())
+trainer = ModelTrainer(ModelConfig.from_yaml('config/model_config.yaml'))
 metrics = trainer.train(df, tune_hyperparameters=True)
 print(metrics)
 "
@@ -304,6 +328,18 @@ The monitoring pipeline detects:
 - **Data Drift**: Statistical changes in feature distributions
 - **Model Performance**: Accuracy degradation over time
 - **Data Quality**: Missing values, outliers, anomalies
+
+Run using Prefect flow (recommended):
+```bash
+# Using the entrypoint script
+uv run monitor-model
+
+# Or run the flow directly
+uv run python -c "
+from match_predictor.ml_pipeline.flows import run_monitoring_flow
+run_monitoring_flow()
+"
+```
 
 Automatically triggers retraining when:
 - Drift share > 30%
@@ -337,6 +373,12 @@ All GitHub Actions workflows are **paused by default** and can be enabled by unc
 - Detects data and model drift
 - Generates monitoring reports
 - Triggers retraining if needed
+
+### Documentation Workflow (`.github/workflows/docs.yml`)
+- Runs on: Push to `main` (docs changes) or manual trigger
+- Builds documentation with MkDocs
+- Deploys to GitHub Pages
+- Auto-generates API reference
 
 ## 🐋 Docker
 
@@ -387,8 +429,9 @@ The project includes comprehensive tests:
 - **Integration Tests**: API and pipeline testing
 - **Feature Tests**: Feature engineering validation
 - **Config Tests**: Configuration validation
+- **Flow Tests**: Prefect workflow testing
 
-Test coverage: 49+ tests covering all major components.
+Test coverage: 61+ tests covering all major components.
 
 ## 📝 Data Source
 
