@@ -244,3 +244,60 @@ def test_hyperparameter_tuning_config_none_timeout():
     """Test HyperparameterTuningConfig with None timeout."""
     config = HyperparameterTuningConfig(timeout=None)
     assert config.timeout is None
+
+
+def test_training_config_custom_test_size():
+    """Test TrainingConfig with custom test_size."""
+    config = TrainingConfig(test_size=0.3, validation_size=0.15)
+    assert config.test_size == 0.3
+    assert config.validation_size == 0.15
+
+
+def test_data_source_config_fields():
+    """Test DataSourceConfig all fields."""
+    config = DataSourceConfig(
+        github_repo="test/repo",
+        selected_year=2000,
+        tourney_levels=["G"]
+    )
+    assert config.github_repo == "test/repo"
+    assert config.selected_year == 2000
+    assert config.tourney_levels == ["G"]
+
+
+def test_feature_config_all_stats_columns():
+    """Test FeatureConfig stats columns."""
+    config = FeatureConfig()
+    assert len(config.stats_columns_mean) > 10
+    assert "p_ace" in config.stats_columns_mean
+    assert "minutes" in config.stats_columns_sum
+    assert "results" in config.stats_columns_sum
+
+
+def test_estimator_config_all_params():
+    """Test EstimatorConfig default params."""
+    config = EstimatorConfig()
+    assert "objective" in config.params
+    assert "eval_metric" in config.params
+    assert "enable_categorical" in config.params
+    assert "seed" in config.params
+    assert "n_estimators" in config.params
+    assert "max_depth" in config.params
+    assert "learning_rate" in config.params
+    assert "colsample_bytree" in config.params
+
+
+def test_data_config_all_fields():
+    """Test DataConfig all fields."""
+    config = DataConfig(
+        source=DataSourceConfig(github_repo="custom/repo"),
+        features=FeatureConfig(elo_k_factor=40.0),
+        inference_data_path="custom_data/",
+        matches_results_file="custom_matches.pkl",
+        tournament_info_file="custom_tourney.pkl"
+    )
+    assert config.source.github_repo == "custom/repo"
+    assert config.features.elo_k_factor == 40.0
+    assert config.inference_data_path == "custom_data/"
+    assert config.matches_results_file == "custom_matches.pkl"
+    assert config.tournament_info_file == "custom_tourney.pkl"
