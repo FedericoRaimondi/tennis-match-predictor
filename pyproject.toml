@@ -25,6 +25,7 @@ dependencies = [
     "evidently>=0.4.0",
     "optuna>=4.2.0",
     "pyyaml>=6.0.0",
+    "prefect>=3.0.0",
 ]
 
 [dependency-groups]
@@ -42,6 +43,8 @@ dev = [
 
 [project.scripts]
 main = 'match_predictor.main:main'
+train-model = 'match_predictor.ml_pipeline.flows:run_training_flow'
+monitor-model = 'match_predictor.ml_pipeline.flows:run_monitoring_flow'
 
 [build-system]
 requires = ["uv_build>=0.7.19,<0.8.0"]

@@ -37,85 +37,24 @@ jobs:
       - name: Check for new data
         id: data_check
         run: |
-          # Check if new data is available
-          NEW_DATA=$(uv run python -c "
-          from match_predictor.data.data_loader import DataLoader
-          import pickle
-          
-          loader = DataLoader('JeffSackmann/tennis_atp')
-          
-          # Get latest data from source
-          new_matches = loader.load_matches()
-          
-          # Load existing data
-          try:
-              with open('data/matches_results.pkl', 'rb') as f:
-                  existing_matches = pickle.load(f)
-              
-              # Compare counts
-              new_count = len(new_matches)
-              existing_count = len(existing_matches)
-              
-              print(new_count > existing_count)
-          except FileNotFoundError:
-              print('true')
-          ")
-          
-          echo "has_new_data=$NEW_DATA" >> $GITHUB_OUTPUT
+          # This will be handled by the Prefect flow
+          echo "has_new_data=true" >> $GITHUB_OUTPUT
 
-      - name: Run drift detection
+      - name: Run monitoring pipeline with Prefect
         id: monitor
-        if: steps.data_check.outputs.has_new_data == 'true'
         run: |
-          uv run python -c "
-          import pickle
-          import pandas as pd
-          from match_predictor.data.data_loader import DataLoader
-          from match_predictor.ml_pipeline.monitoring import ModelMonitor
-          from match_predictor.ml_pipeline.feature_engineering import FeatureEngineer
-
-          # Load data
-          loader = DataLoader('JeffSackmann/tennis_atp')
+          # Run the Prefect monitoring flow
+          set +e  # Don't exit on error
+          uv run monitor-model
+          EXIT_CODE=$?
+          set -e
           
-          # Get reference data (existing)
-          with open('data/matches_results.pkl', 'rb') as f:
-              reference_matches = pickle.load(f)
-          
-          # Get current data (new)
-          current_matches = loader.load_matches()
-          
-          # Prepare datasets
-          reference_ml = loader.get_ml_data(df=reference_matches)
-          current_ml = loader.get_ml_data(df=current_matches)
-          
-          # Engineer features
-          engineer = FeatureEngineer()
-          reference_features = engineer.engineer_features(reference_ml)
-          current_features = engineer.engineer_features(current_ml)
-          
-          # Prepare for monitoring
-          X_ref, y_ref = engineer.prepare_features_for_training(reference_features)
-          X_cur, y_cur = engineer.prepare_features_for_training(current_features)
-          
-          # Monitor drift
-          monitor = ModelMonitor()
-          monitor.set_reference_data(X_ref.assign(winner=y_ref))
-          monitor.set_current_data(X_cur.assign(winner=y_cur))
-          
-          drift_results = monitor.check_data_drift()
-          
-          print(f'Drift detected: {drift_results[\"drift_detected\"]}')
-          print(f'Drift share: {drift_results[\"drift_share\"]:.2%}')
-          print(f'Requires retraining: {drift_results[\"requires_retraining\"]}')
-          
-          # Generate monitoring report
-          monitor.generate_monitoring_report('reports/monitoring_report.html')
-          
-          # Output for next step
-          import os
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-              f.write(f'should_retrain={str(drift_results[\"requires_retraining\"]).lower()}\n')
-          "
+          # Exit code 2 means retraining is needed
+          if [ $EXIT_CODE -eq 2 ]; then
+            echo "should_retrain=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_retrain=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Upload monitoring report
         if: steps.data_check.outputs.has_new_data == 'true'

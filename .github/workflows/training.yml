@@ -49,8 +49,8 @@ jobs:
       - name: Check for new data
         id: check
         run: |
-          # Check if new data is available in the source repository
-          # This is a placeholder - implement actual logic based on your data source
+          # Use the Prefect-based monitoring flow to check for new data
+          # Note: This is a simplified check; full monitoring runs in the monitoring workflow
           echo "should_train=true" >> $GITHUB_OUTPUT
 
   train-model:
@@ -76,81 +76,13 @@ jobs:
         run: |
           uv sync
 
-      - name: Download latest data
+      - name: Run training pipeline with Prefect
         run: |
-          # Download or update data from source
-          uv run python -c "
-          from match_predictor.data.data_loader import DataLoader
-          loader = DataLoader('JeffSackmann/tennis_atp')
-          matches = loader.load_matches()
-          matches.to_pickle('data/matches_results.pkl')
-          print(f'Downloaded {len(matches)} matches')
-          "
-
-      - name: Train model
-        run: |
-          uv run python -c "
-          import pickle
-          import pandas as pd
-          from match_predictor.data.data_loader import DataLoader
-          from match_predictor.ml_pipeline.training import ModelTrainer
-          from config.model_config import ModelConfig
-
-          # Load data
-          with open('data/matches_results.pkl', 'rb') as f:
-              matches = pickle.load(f)
-
-          # Prepare ML dataset
-          loader = DataLoader('JeffSackmann/tennis_atp')
-          ml_data = loader.get_ml_data(df=matches)
-
-          # Train model
-          config = ModelConfig()
-          trainer = ModelTrainer(config)
-          metrics = trainer.train(
-              ml_data,
-              tune_hyperparameters=${{ github.event.inputs.tune_hyperparameters || false }},
-              log_to_mlflow=True
-          )
-
-          print(f'Training complete. Test accuracy: {metrics[\"test_accuracy\"]:.4f}')
-
-          # Save model
-          trainer.save_model('models/latest_model.pkl')
-          "
-
-      - name: Evaluate and deploy model
-        run: |
-          uv run python -c "
-          import pickle
-          from pathlib import Path
-
-          # Load new model
-          with open('models/latest_model.pkl', 'rb') as f:
-              new_model_data = pickle.load(f)
-
-          new_accuracy = new_model_data['metrics']['test_accuracy']
-          print(f'New model accuracy: {new_accuracy:.4f}')
-
-          # Check if champion model exists
-          champion_path = Path('models/champion_model.pkl')
-          if champion_path.exists():
-              with open(champion_path, 'rb') as f:
-                  champion_data = pickle.load(f)
-              champion_accuracy = champion_data['metrics']['test_accuracy']
-              print(f'Champion model accuracy: {champion_accuracy:.4f}')
-          else:
-              champion_accuracy = None
-              print('No champion model found')
-
-          # Promote if better
-          if champion_accuracy is None or new_accuracy > champion_accuracy:
-              import shutil
-              shutil.copy('models/latest_model.pkl', 'models/champion_model.pkl')
-              print('✓ New model promoted to champion!')
-          else:
-              print('✗ New model not better than champion')
-          "
+          if [ "${{ github.event.inputs.tune_hyperparameters }}" = "true" ]; then
+            uv run train-model --tune
+          else
+            uv run train-model
+          fi
 
       - name: Commit and push new model
         run: |
