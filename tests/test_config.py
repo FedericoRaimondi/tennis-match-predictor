@@ -115,3 +115,132 @@ def test_config_from_yaml_nonexistent():
     config = DataConfig.from_yaml("nonexistent_file.yaml")
     assert config.source.github_repo == "JeffSackmann/tennis_atp"
     assert config.features.elo_k_factor == 32.0
+
+
+def test_feature_config_elo_initial_rating():
+    """Test FeatureConfig elo_initial_rating."""
+    config = FeatureConfig()
+    assert config.elo_initial_rating == 1500.0
+
+
+def test_feature_config_stats_columns_sum():
+    """Test FeatureConfig stats_columns_sum."""
+    config = FeatureConfig()
+    assert "minutes" in config.stats_columns_sum
+    assert "results" in config.stats_columns_sum
+
+
+def test_data_config_matches_results_file():
+    """Test DataConfig matches_results_file default."""
+    config = DataConfig()
+    assert config.matches_results_file == "matches_results.pkl"
+
+
+def test_data_config_tournament_info_file():
+    """Test DataConfig tournament_info_file default."""
+    config = DataConfig()
+    assert config.tournament_info_file == "tournament_info.pkl"
+
+
+def test_estimator_config_custom_params():
+    """Test EstimatorConfig with custom parameters."""
+    config = EstimatorConfig(
+        module="sklearn.tree",
+        class_name="DecisionTreeClassifier",
+        params={"max_depth": 5, "random_state": 123},
+    )
+    assert config.module == "sklearn.tree"
+    assert config.class_name == "DecisionTreeClassifier"
+    assert config.params["max_depth"] == 5
+    assert config.params["random_state"] == 123
+
+
+def test_hyperparameter_tuning_config_timeout():
+    """Test HyperparameterTuningConfig timeout."""
+    config = HyperparameterTuningConfig()
+    assert config.timeout == 3600
+
+
+def test_training_config_random_state():
+    """Test TrainingConfig random_state."""
+    config = TrainingConfig()
+    assert config.random_state == 42
+
+
+def test_mlflow_config_defaults():
+    """Test MLflowConfig with default values."""
+    from match_predictor.config import MLflowConfig
+
+    config = MLflowConfig()
+    assert config.experiment_name == "tennis-match-predictor"
+    assert config.tracking_uri == "file:./mlruns"
+    assert config.model_name == "tennis_predictor_model"
+
+
+def test_mlflow_config_custom_values():
+    """Test MLflowConfig with custom values."""
+    from match_predictor.config import MLflowConfig
+
+    config = MLflowConfig(
+        experiment_name="custom_experiment", tracking_uri="http://localhost:5000", model_name="custom_model"
+    )
+    assert config.experiment_name == "custom_experiment"
+    assert config.tracking_uri == "http://localhost:5000"
+    assert config.model_name == "custom_model"
+
+
+def test_model_config_mlflow():
+    """Test ModelConfig includes MLflowConfig."""
+    config = ModelConfig()
+    assert hasattr(config, "mlflow")
+    assert config.mlflow.experiment_name == "tennis-match-predictor"
+
+
+def test_model_config_champion_model_path():
+    """Test ModelConfig champion_model_path."""
+    config = ModelConfig()
+    assert config.champion_model_path == "models/"
+
+
+def test_data_config_from_yaml_empty_file(tmp_path):
+    """Test DataConfig loading from empty YAML file."""
+    import yaml
+
+    empty_yaml = tmp_path / "empty.yaml"
+    with open(empty_yaml, "w") as f:
+        yaml.dump(None, f)
+
+    config = DataConfig.from_yaml(empty_yaml)
+    # Should return default config for empty file
+    assert config.source.github_repo == "JeffSackmann/tennis_atp"
+
+
+def test_model_config_from_yaml_empty_file(tmp_path):
+    """Test ModelConfig loading from empty YAML file."""
+    import yaml
+
+    empty_yaml = tmp_path / "empty.yaml"
+    with open(empty_yaml, "w") as f:
+        yaml.dump(None, f)
+
+    config = ModelConfig.from_yaml(empty_yaml)
+    # Should return default config for empty file
+    assert config.model_name == "atp_match_predictor"
+
+
+def test_data_source_config_custom_tourney_levels():
+    """Test DataSourceConfig with custom tourney levels."""
+    config = DataSourceConfig(tourney_levels=["G", "M"])
+    assert config.tourney_levels == ["G", "M"]
+
+
+def test_feature_config_custom_rolling_windows():
+    """Test FeatureConfig with custom rolling windows."""
+    config = FeatureConfig(rolling_windows=[5, 10, 15])
+    assert config.rolling_windows == [5, 10, 15]
+
+
+def test_hyperparameter_tuning_config_none_timeout():
+    """Test HyperparameterTuningConfig with None timeout."""
+    config = HyperparameterTuningConfig(timeout=None)
+    assert config.timeout is None
