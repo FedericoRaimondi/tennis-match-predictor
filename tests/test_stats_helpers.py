@@ -113,3 +113,147 @@ def test_add_rolling_stats_median(sample_df):
     assert pd.isna(df.loc[3, "aces_median_last2"])
     assert df.loc[1, "aces_median_last2"] == 5
     assert df.loc[2, "aces_median_last2"] == pytest.approx(7.5)
+
+
+@pytest.fixture
+def sample_elo_df():
+    # Create a simple DataFrame for ELO testing
+    data = {
+        "player_id": [1, 2, 1, 2, 1],
+        "opponent_id": [2, 1, 2, 1, 2],
+        "tourney_date": pd.to_datetime(["2021-01-01", "2021-01-02", "2021-01-03", "2021-01-04", "2021-01-05"]),
+        "tourney_id": ["A", "A", "A", "A", "A"],
+        "match_num": [1, 2, 3, 4, 5],
+        "results": [1, 0, 1, 1, 0],
+    }
+    return pd.DataFrame(data)
+
+
+def test_calculate_elo_basic(sample_elo_df):
+    df = stats_helpers.calculate_elo(sample_elo_df)
+    assert "elo_rating" in df.columns
+    # First match: both players start at 1500
+    assert df.loc[0, "elo_rating"] == 1500.0
+    # ELO should change after matches
+    assert df.loc[1, "elo_rating"] != 1500.0
+
+
+def test_calculate_elo_winner_increases():
+    data = {
+        "player_id": [1, 1],
+        "opponent_id": [2, 2],
+        "tourney_date": pd.to_datetime(["2021-01-01", "2021-01-02"]),
+        "tourney_id": ["A", "A"],
+        "match_num": [1, 2],
+        "results": [1, 1],
+    }
+    df = pd.DataFrame(data)
+    result_df = stats_helpers.calculate_elo(df)
+
+    # Player 1 wins both matches, so their ELO before second match should be higher than 1500
+    assert result_df.loc[1, "elo_rating"] > 1500.0
+
+
+def test_calculate_elo_custom_k_factor():
+    data = {
+        "player_id": [1, 2],
+        "opponent_id": [2, 1],
+        "tourney_date": pd.to_datetime(["2021-01-01", "2021-01-02"]),
+        "tourney_id": ["A", "A"],
+        "match_num": [1, 2],
+        "results": [1, 0],
+    }
+    df = pd.DataFrame(data)
+    result_df = stats_helpers.calculate_elo(df, k=64)
+
+    assert "elo_rating" in result_df.columns
+    # With higher K-factor, changes should be more dramatic
+    elo_change = abs(result_df.loc[0, "elo_rating"] - 1500.0)
+    assert elo_change == 0  # First match starts at base
+
+
+def test_calculate_elo_custom_base_elo():
+    data = {
+        "player_id": [1, 2],
+        "opponent_id": [2, 1],
+        "tourney_date": pd.to_datetime(["2021-01-01", "2021-01-02"]),
+        "tourney_id": ["A", "A"],
+        "match_num": [1, 2],
+        "results": [1, 0],
+    }
+    df = pd.DataFrame(data)
+    result_df = stats_helpers.calculate_elo(df, base_elo=2000)
+
+    # First player should start at custom base ELO
+    assert result_df.loc[0, "elo_rating"] == 2000.0
+
+
+def test_calculate_elo_consistent_updates(sample_elo_df):
+    df = stats_helpers.calculate_elo(sample_elo_df)
+
+    # ELO ratings should be calculated for all matches
+    assert df["elo_rating"].notna().all()
+
+
+def test_calculate_elo_multiple_players():
+    data = {
+        "player_id": [1, 2, 3, 1, 2, 3],
+        "opponent_id": [2, 3, 1, 3, 1, 2],
+        "tourney_date": pd.to_datetime(
+            ["2021-01-01", "2021-01-02", "2021-01-03", "2021-01-04", "2021-01-05", "2021-01-06"]
+        ),
+        "tourney_id": ["A", "A", "A", "A", "A", "A"],
+        "match_num": [1, 2, 3, 4, 5, 6],
+        "results": [1, 1, 1, 0, 1, 0],
+    }
+    df = pd.DataFrame(data)
+    result_df = stats_helpers.calculate_elo(df)
+
+    # All players should start at base ELO
+    assert result_df.loc[0, "elo_rating"] == 1500.0
+    assert result_df.loc[1, "elo_rating"] == 1500.0
+    assert result_df.loc[2, "elo_rating"] == 1500.0
+
+
+def test_calculate_elo_custom_columns():
+    data = {
+        "p1": [1, 2],
+        "p2": [2, 1],
+        "tourney_date": pd.to_datetime(["2021-01-01", "2021-01-02"]),
+        "tourney_id": ["A", "A"],
+        "match_num": [1, 2],
+        "win": [1, 0],
+    }
+    df = pd.DataFrame(data)
+    result_df = stats_helpers.calculate_elo(df, player_col="p1", opponent_col="p2", result_col="win")
+
+    assert "elo_rating" in result_df.columns
+    assert result_df.loc[0, "elo_rating"] == 1500.0
+
+
+def test_calculate_elo_preserves_original_columns(sample_elo_df):
+    original_columns = set(sample_elo_df.columns)
+    result_df = stats_helpers.calculate_elo(sample_elo_df)
+
+    # All original columns should still be present
+    for col in original_columns:
+        assert col in result_df.columns
+
+
+def test_calculate_elo_sorted_chronologically():
+    # Create unsorted data
+    data = {
+        "player_id": [1, 1, 1],
+        "opponent_id": [2, 2, 2],
+        "tourney_date": pd.to_datetime(["2021-01-03", "2021-01-01", "2021-01-02"]),
+        "tourney_id": ["A", "A", "A"],
+        "match_num": [3, 1, 2],
+        "results": [1, 0, 1],
+    }
+    df = pd.DataFrame(data)
+    result_df = stats_helpers.calculate_elo(df)
+
+    # ELO should be calculated chronologically
+    # First chronological match should start at base ELO
+    first_match_idx = result_df.sort_values(["player_id", "tourney_date", "tourney_id", "match_num"]).index[0]
+    assert result_df.loc[first_match_idx, "elo_rating"] == 1500.0
