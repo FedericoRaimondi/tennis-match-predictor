@@ -126,9 +126,24 @@ def save_data_task(matches: pd.DataFrame, data_config: DataConfig):
     data_path = Path(data_config.inference_data_path)
     data_path.mkdir(parents=True, exist_ok=True)
 
+    # Save matches
     matches_file = data_path / data_config.matches_results_file
     matches.to_pickle(matches_file)
     logger.info(f"Saved matches to {matches_file}")
+
+    # Initialize DataLoader for additional data saving
+    loader = DataLoader("JeffSackmann/tennis_atp")
+
+    # Save tournament info
+    tournament_info = loader.get_tournament_info(df=matches)
+    tournament_file = data_path / "tournament_info.pkl"
+    tournament_info.to_pickle(tournament_file)
+    logger.info(f"Saved tournament info to {tournament_file}")
+
+    # Save latest player stats for inference
+    player_stats_file = data_path / "player_stats_latest.csv"
+    loader.save_latest_player_stats(df=matches, output_path=str(player_stats_file))
+    logger.info(f"Saved latest player stats to {player_stats_file}")
 
 
 @flow(name="Training Pipeline", log_prints=True)

@@ -188,3 +188,49 @@ def test_api_version():
     from match_predictor.api.main import app
 
     assert app.version == "1.0.0"
+
+
+def test_predict_response_with_latest_matches():
+    """Test PredictResponse model with latest matches."""
+    from match_predictor.api.main import PredictResponse
+
+    matches = [
+        {
+            "date": "2021-01-01",
+            "player1": "Player A",
+            "player2": "Player B",
+            "winner": "Player A",
+            "tournament": "US Open",
+            "surface": "Hard",
+            "score": "6-3 6-4"
+        }
+    ]
+    
+    response = PredictResponse(
+        player1="Player A",
+        player2="Player B",
+        tournament="Wimbledon",
+        player1_win_probability=0.65,
+        player2_win_probability=0.35,
+        predicted_winner="Player A",
+        latest_matches=matches
+    )
+    assert response.player1 == "Player A"
+    assert response.predicted_winner == "Player A"
+    assert len(response.latest_matches) == 1
+    assert response.latest_matches[0]["winner"] == "Player A"
+
+
+def test_predict_response_without_latest_matches():
+    """Test PredictResponse model defaults to empty list for latest_matches."""
+    from match_predictor.api.main import PredictResponse
+
+    response = PredictResponse(
+        player1="Player A",
+        player2="Player B",
+        tournament="Wimbledon",
+        player1_win_probability=0.65,
+        player2_win_probability=0.35,
+        predicted_winner="Player A"
+    )
+    assert response.latest_matches == []

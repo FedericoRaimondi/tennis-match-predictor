@@ -94,15 +94,44 @@ def test_save_data_task(sample_matches, mock_data_config, tmp_path, monkeypatch)
     # Override the data path to use temp directory
     mock_data_config.inference_data_path = str(tmp_path)
     
+    # Mock DataLoader methods
+    def mock_init(self, repo):
+        pass
+    
+    def mock_get_tournament_info(self, df):
+        return pd.DataFrame({
+            "tourney_id": ["2021-001"],
+            "tourney_name": ["Tournament 1"],
+            "surface": ["Hard"]
+        })
+    
+    def mock_save_latest_player_stats(self, df, output_path):
+        # Create a dummy CSV file
+        output_file = Path(output_path)
+        pd.DataFrame({"player_id": [1, 2], "player_name": ["A", "B"]}).to_csv(output_file, index=False)
+        return output_file
+    
+    monkeypatch.setattr("match_predictor.ml_pipeline.flows.DataLoader.__init__", mock_init)
+    monkeypatch.setattr("match_predictor.ml_pipeline.flows.DataLoader.get_tournament_info", mock_get_tournament_info)
+    monkeypatch.setattr("match_predictor.ml_pipeline.flows.DataLoader.save_latest_player_stats", mock_save_latest_player_stats)
+    
     save_data_task(sample_matches, mock_data_config)
     
-    # Verify file was created
+    # Verify matches file was created
     expected_file = tmp_path / mock_data_config.matches_results_file
     assert expected_file.exists()
     
     # Verify data can be loaded
     loaded = pd.read_pickle(expected_file)
     assert len(loaded) == len(sample_matches)
+    
+    # Verify tournament info was saved
+    tournament_file = tmp_path / "tournament_info.pkl"
+    assert tournament_file.exists()
+    
+    # Verify player stats were saved
+    player_stats_file = tmp_path / "player_stats_latest.csv"
+    assert player_stats_file.exists()
 
 
 def test_evaluate_and_promote_task_no_champion(mock_model_config, tmp_path):

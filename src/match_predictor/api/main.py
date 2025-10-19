@@ -49,6 +49,7 @@ class PredictResponse(BaseModel):
     player1_win_probability: float
     player2_win_probability: float
     predicted_winner: str
+    latest_matches: list[dict] = []
 
 
 class MatchStats(BaseModel):
@@ -84,30 +85,51 @@ async def predict_winner(request: PredictRequest) -> PredictResponse:
     """
     Predict the winner of a tennis match.
 
+    This endpoint retrieves the champion model from the registry and uses it to predict
+    the match outcome based on:
+    - Latest player statistics (from saved player stats)
+    - Tournament information (surface, location, etc.)
+    - Dynamically constructed inference-ready features
+
     Args:
         request: PredictRequest containing player names and tournament
 
     Returns:
-        PredictResponse with win probabilities and predicted winner
+        PredictResponse with win probabilities, predicted winner, and latest 5 match stats
     """
     if clf is None:
         raise HTTPException(status_code=503, detail="Model not loaded")
 
     try:
-        # Load player stats
-        player_stats_file = DATA_PATH / "player_stats_hist.pkl"
-        if not player_stats_file.exists():
+        # Load latest player stats from CSV/Parquet (saved by save_latest_player_stats)
+        player_stats_file_csv = DATA_PATH / "player_stats_latest.csv"
+        player_stats_file_parquet = DATA_PATH / "player_stats_latest.parquet"
+        
+        # Try to load from either CSV or Parquet
+        if player_stats_file_parquet.exists():
+            player_stats = pd.read_parquet(player_stats_file_parquet)
+        elif player_stats_file_csv.exists():
+            player_stats = pd.read_csv(player_stats_file_csv)
+        else:
             raise HTTPException(
                 status_code=404,
-                detail="Player stats data not found. Please ensure data is available."
+                detail="Player stats data not found. Please ensure save_latest_player_stats() has been called."
             )
 
-        with open(player_stats_file, "rb") as f:
-            player_stats = pickle.load(f)
+        # Load tournament information
+        tournament_info_file = DATA_PATH / "tournament_info.pkl"
+        if not tournament_info_file.exists():
+            raise HTTPException(
+                status_code=404,
+                detail="Tournament info data not found. Please ensure data is available."
+            )
+        
+        with open(tournament_info_file, "rb") as f:
+            tournament_info = pickle.load(f)
 
         # Get latest stats for both players
-        player1_stats = player_stats[player_stats["player_name"] == request.player1].tail(1)
-        player2_stats = player_stats[player_stats["player_name"] == request.player2].tail(1)
+        player1_stats = player_stats[player_stats["player_name"] == request.player1]
+        player2_stats = player_stats[player_stats["player_name"] == request.player2]
 
         if player1_stats.empty or player2_stats.empty:
             raise HTTPException(
@@ -115,19 +137,114 @@ async def predict_winner(request: PredictRequest) -> PredictResponse:
                 detail=f"Stats not found for one or both players: {request.player1}, {request.player2}"
             )
 
-        # Prepare features for prediction (this is a simplified version)
-        # In a real implementation, you would combine features according to your model's requirements
-        features = pd.DataFrame({
-            # Add feature columns based on your model's expected input
-            # This is a placeholder - adjust based on your actual feature set
-        })
+        # Get the latest stats (last row for each player)
+        player1_latest = player1_stats.iloc[-1]
+        player2_latest = player2_stats.iloc[-1]
+
+        # Get tournament information
+        tournament_data = tournament_info[tournament_info["tourney_name"] == request.tournament]
+        
+        if tournament_data.empty:
+            # Use default tournament info if not found
+            logger.warning(f"Tournament '{request.tournament}' not found, using default surface")
+            surface = "Hard"
+            tourney_level = "A"
+        else:
+            latest_tournament = tournament_data.iloc[-1]
+            surface = latest_tournament.get("surface", "Hard")
+            tourney_level = latest_tournament.get("tourney_level", "A")
+
+        # Construct inference features
+        # Combine player1 stats, player2 stats, and tournament info
+        from match_predictor.ml_pipeline.feature_engineering import FeatureEngineer
+        
+        # Create a row similar to training data structure
+        inference_row = {
+            # Player 1 stats (these columns come from get_player_stats)
+            "player_1": player1_latest.get("player_id"),
+            "player_2": player2_latest.get("player_id"),
+            "player_name": request.player1,
+            "opponent_name": request.player2,
+            "surface": surface,
+            "tourney_level": tourney_level,
+        }
+        
+        # Add all player stats with proper suffixes
+        for col in player1_latest.index:
+            if col.startswith("player_") or col.startswith("p_") or col.startswith("elo") or col in ["player_rank", "player_rank_points", "player_age", "player_hand", "player_ht", "player_ioc"]:
+                inference_row[col] = player1_latest[col]
+            if col.startswith("opponent_") or col.startswith("o_"):
+                # For player 2, we'll add these from player2_latest but as opponent stats
+                pass
+        
+        # Add player 2 stats as opponent for player 1's perspective
+        for col in player2_latest.index:
+            if col.startswith("player_"):
+                new_col = col.replace("player_", "opponent_")
+                inference_row[new_col] = player2_latest[col]
+            elif col.startswith("p_"):
+                new_col = col.replace("p_", "o_")
+                inference_row[new_col] = player2_latest[col]
+
+        # Create DataFrame with single row for inference
+        inference_df = pd.DataFrame([inference_row])
+        
+        # Apply feature engineering
+        feature_engineer = FeatureEngineer()
+        inference_df_engineered = feature_engineer.engineer_features(inference_df)
+        
+        # Get features (without target since we're predicting)
+        feature_names = feature_engineer.get_feature_names(inference_df_engineered)
+        
+        # Prepare features - ensure all expected columns exist
+        X_inference = pd.DataFrame()
+        for col in feature_names:
+            if col in inference_df_engineered.columns:
+                X_inference[col] = inference_df_engineered[col]
+            else:
+                # Fill missing features with 0 or appropriate default
+                X_inference[col] = 0
+        
+        # Convert categorical columns to numeric
+        for col in X_inference.select_dtypes(include=["object", "category"]).columns:
+            X_inference[col] = pd.Categorical(X_inference[col]).codes
 
         # Make prediction
-        probabilities = clf.predict_proba(features)[0]
+        probabilities = clf.predict_proba(X_inference)[0]
         player1_prob = float(probabilities[0])
         player2_prob = float(probabilities[1])
 
         predicted_winner = request.player1 if player1_prob > player2_prob else request.player2
+
+        # Get latest 5 matches for display
+        matches_file = DATA_PATH / "matches_results.pkl"
+        latest_matches = []
+        
+        if matches_file.exists():
+            with open(matches_file, "rb") as f:
+                matches_df = pickle.load(f)
+            
+            # Get matches involving either player
+            player_matches = matches_df[
+                (matches_df["winner_name"] == request.player1) | 
+                (matches_df["loser_name"] == request.player1) |
+                (matches_df["winner_name"] == request.player2) | 
+                (matches_df["loser_name"] == request.player2)
+            ]
+            
+            # Get latest 5 matches
+            latest = player_matches.sort_values("tourney_date", ascending=False).head(5)
+            
+            for _, row in latest.iterrows():
+                latest_matches.append({
+                    "date": str(row["tourney_date"]),
+                    "player1": row["winner_name"],
+                    "player2": row["loser_name"],
+                    "winner": row["winner_name"],
+                    "tournament": row["tourney_name"],
+                    "surface": row.get("surface"),
+                    "score": row.get("score"),
+                })
 
         return PredictResponse(
             player1=request.player1,
@@ -135,7 +252,8 @@ async def predict_winner(request: PredictRequest) -> PredictResponse:
             tournament=request.tournament,
             player1_win_probability=player1_prob,
             player2_win_probability=player2_prob,
-            predicted_winner=predicted_winner
+            predicted_winner=predicted_winner,
+            latest_matches=latest_matches
         )
 
     except HTTPException:
