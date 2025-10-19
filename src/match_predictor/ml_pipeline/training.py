@@ -11,7 +11,7 @@ from loguru import logger
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 from sklearn.model_selection import train_test_split
 
-from config.model_config import ModelConfig
+from match_predictor.config import ModelConfig
 from match_predictor.ml_pipeline.feature_engineering import FeatureEngineer
 from match_predictor.ml_pipeline.hyperparameter_tuning import HyperparameterTuner
 

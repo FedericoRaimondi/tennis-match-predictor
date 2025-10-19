@@ -29,16 +29,19 @@ This document summarizes the complete implementation of the Tennis Match Predict
 - ✅ Automatic API documentation at `/docs`
 
 ### 3. Configuration Management ✅
-**Location**: `config/`
+**Pydantic Classes**: `src/match_predictor/config.py`
+**YAML Files**: `config/`
 
-**Files**:
-- ✅ `config/data_config.py` - Pydantic-based data configuration
-  - Data source configuration
-  - Feature engineering configuration
-  - Rolling statistics windows
-  - ELO rating parameters
-- ✅ `config/model_config.py` - Pydantic-based model configuration
-  - Estimator configuration
+**Structure**:
+- ✅ `src/match_predictor/config.py` - Pydantic models for type-safe configuration
+  - DataConfig, DataSourceConfig, FeatureConfig classes
+  - ModelConfig, EstimatorConfig, TrainingConfig, MLflowConfig classes
+  - YAML loading methods with `from_yaml()`
+- ✅ `config/data_config.yaml` - Data configuration values
+  - Data source settings (GitHub repo, year filter)
+  - Feature engineering parameters (rolling windows, ELO)
+- ✅ `config/model_config.yaml` - Model configuration values
+  - Model and estimator settings
   - Hyperparameter tuning parameters
   - Training configuration
   - MLflow settings

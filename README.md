@@ -88,13 +88,14 @@ A complete end-to-end machine learning system for predicting tennis match outcom
 │       ├── model/               # Model classes
 │       │   ├── base_model.py
 │       │   └── estimator_model.py
-│       └── utils/               # Helper functions
-│           ├── gh_utils.py
-│           └── stats_helpers.py
+│       ├── utils/               # Helper functions
+│       │   ├── gh_utils.py
+│       │   └── stats_helpers.py
+│       └── config.py            # Pydantic configuration classes
 │
 ├── config/
-│   ├── data_config.py           # Pydantic data configuration
-│   └── model_config.py          # Pydantic model configuration
+│   ├── data_config.yaml         # Data configuration (YAML)
+│   └── model_config.yaml        # Model configuration (YAML)
 │
 ├── tests/                       # Test suite (pytest)
 │   ├── test_api.py
@@ -229,45 +230,49 @@ Visit the [documentation site](https://FedericoRaimondi.github.io/tennis-match-p
 
 ## 🔧 Configuration
 
-The project uses Pydantic for configuration management. Configuration files are located in the `config/` directory:
+The project uses Pydantic for configuration management with YAML files. Pydantic classes are in `src/match_predictor/config.py`, and configuration values are stored in YAML files in the `config/` directory.
 
-### Data Configuration (`config/data_config.py`)
-```python
-from config.data_config import DataConfig
+### Data Configuration (`config/data_config.yaml`)
+```yaml
+source:
+  github_repo: "JeffSackmann/tennis_atp"
+  selected_year: 1991
+  tourney_levels: ["G", "F", "M", "A"]
 
-config = DataConfig(
-    source=DataSourceConfig(
-        github_repo="JeffSackmann/tennis_atp",
-        selected_year=1991,
-        tourney_levels=["G", "F", "M", "A"]
-    ),
-    features=FeatureConfig(
-        rolling_windows=[3, 5, 10],
-        elo_k_factor=32.0
-    )
-)
+features:
+  rolling_windows: [3, 5, 10]
+  elo_k_factor: 32.0
+  elo_initial_rating: 1500.0
 ```
 
-### Model Configuration (`config/model_config.py`)
-```python
-from config.model_config import ModelConfig
+### Model Configuration (`config/model_config.yaml`)
+```yaml
+model_name: atp_match_predictor
 
-config = ModelConfig(
-    model_name="atp_match_predictor",
-    estimator=EstimatorConfig(
-        module="xgboost",
-        class_name="XGBClassifier",
-        params={
-            "max_depth": 3,
-            "learning_rate": 0.01,
-            "n_estimators": 1000
-        }
-    ),
-    training=TrainingConfig(
-        min_accuracy_threshold=0.60,
-        test_size=0.2
-    )
-)
+estimator:
+  module: xgboost
+  class_name: XGBClassifier
+  params:
+    max_depth: 3
+    learning_rate: 0.01
+    n_estimators: 1000
+
+training:
+  min_accuracy_threshold: 0.60
+  test_size: 0.2
+```
+
+### Loading Configuration in Python
+```python
+from match_predictor.config import DataConfig, ModelConfig
+
+# Load from YAML files
+data_config = DataConfig.from_yaml("config/data_config.yaml")
+model_config = ModelConfig.from_yaml("config/model_config.yaml")
+
+# Or use defaults
+data_config = DataConfig()
+model_config = ModelConfig()
 ```
 
 ## 🤖 ML Pipeline

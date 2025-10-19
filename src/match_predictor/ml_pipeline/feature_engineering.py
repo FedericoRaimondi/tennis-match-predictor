@@ -3,7 +3,7 @@
 import pandas as pd
 from loguru import logger
 
-from config.data_config import DataConfig
+from match_predictor.config import DataConfig
 
 
 class FeatureEngineer:

@@ -102,11 +102,12 @@ docker-compose up --build
 │       ├── ml_pipeline/         # Training & monitoring
 │       ├── data/                # Data loading utilities
 │       ├── model/               # Model classes
-│       └── utils/               # Helper functions
+│       ├── utils/               # Helper functions
+│       └── config.py            # Pydantic configuration classes
 │
 ├── config/
-│   ├── data_config.py           # Data configuration
-│   └── model_config.py          # Model configuration
+│   ├── data_config.yaml         # Data configuration (YAML)
+│   └── model_config.yaml        # Model configuration (YAML)
 │
 ├── tests/                       # Test suite
 ├── data/                        # Inference data

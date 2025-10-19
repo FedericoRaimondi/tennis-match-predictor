@@ -1,9 +1,11 @@
 """Tests for Pydantic configuration."""
 
 import pytest
-from config.data_config import DataConfig, DataSourceConfig, FeatureConfig
-from config.model_config import (
+from match_predictor.config import (
+    DataConfig,
+    DataSourceConfig,
     EstimatorConfig,
+    FeatureConfig,
     HyperparameterTuningConfig,
     ModelConfig,
     TrainingConfig,
@@ -87,3 +89,29 @@ def test_model_config_custom_values():
     )
     assert config.model_name == "custom_model"
     assert config.estimator.class_name == "RandomForestClassifier"
+
+
+def test_data_config_from_yaml():
+    """Test DataConfig loading from YAML file."""
+    # Test with default path
+    config = DataConfig.from_yaml("config/data_config.yaml")
+    assert config.source.github_repo == "JeffSackmann/tennis_atp"
+    assert config.source.selected_year == 1991
+    assert config.features.rolling_windows == [3, 5, 10]
+
+
+def test_model_config_from_yaml():
+    """Test ModelConfig loading from YAML file."""
+    # Test with default path
+    config = ModelConfig.from_yaml("config/model_config.yaml")
+    assert config.model_name == "atp_match_predictor"
+    assert config.estimator.module == "xgboost"
+    assert config.estimator.class_name == "XGBClassifier"
+    assert config.training.min_accuracy_threshold == 0.60
+
+
+def test_config_from_yaml_nonexistent():
+    """Test config loading with nonexistent file returns defaults."""
+    config = DataConfig.from_yaml("nonexistent_file.yaml")
+    assert config.source.github_repo == "JeffSackmann/tennis_atp"
+    assert config.features.elo_k_factor == 32.0

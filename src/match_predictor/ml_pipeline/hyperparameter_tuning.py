@@ -4,7 +4,7 @@ import optuna
 from loguru import logger
 from sklearn.model_selection import cross_val_score
 
-from config.model_config import HyperparameterTuningConfig, ModelConfig
+from match_predictor.config import HyperparameterTuningConfig, ModelConfig
 
 
 class HyperparameterTuner:
