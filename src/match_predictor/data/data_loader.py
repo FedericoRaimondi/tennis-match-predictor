@@ -1,6 +1,7 @@
 """Data loading utilities for tennis match prediction."""
 
 import re
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -343,6 +344,46 @@ class DataLoader:
         self.logger.info(f"Final dataset shape: {ml_dataset.shape}")
 
         return ml_dataset
+
+    def save_latest_player_stats(self, df: pd.DataFrame = None, output_path: str = "data/player_stats_latest.csv") -> Path:
+        """Save the latest player statistics to a file for quick access during inference.
+
+        This method extracts and saves the most recent performance statistics for each player,
+        making them available for feature generation during model inference.
+
+        Parameters:
+            df (pd.DataFrame, optional): DataFrame containing match data. If None, loads matches from GitHub.
+            output_path (str): Path where the player stats will be saved. Defaults to "data/player_stats_latest.csv".
+                Can be .csv or .parquet format based on the file extension.
+
+        Returns:
+            Path: The path to the saved file.
+
+        Examples:
+            >>> data_loader = DataLoader("JeffSackmann/tennis_atp")
+            >>> stats_path = data_loader.save_latest_player_stats()
+            >>> print(f"Stats saved to: {stats_path}")
+        """
+        self.logger.info("Extracting and saving latest player statistics...")
+
+        # Get the latest stats for each player
+        player_stats = self.get_player_stats(df=df, latest=True)
+
+        # Create output directory if it doesn't exist
+        output_file = Path(output_path)
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+
+        # Save based on file extension
+        if output_path.endswith(".parquet"):
+            player_stats.to_parquet(output_file, index=False)
+            self.logger.info(f"Latest player stats saved to {output_file} (parquet format)")
+        else:
+            player_stats.to_csv(output_file, index=False)
+            self.logger.info(f"Latest player stats saved to {output_file} (csv format)")
+
+        self.logger.info(f"Saved stats for {len(player_stats)} players")
+
+        return output_file
 
 
 # if __name__ == "__main__":

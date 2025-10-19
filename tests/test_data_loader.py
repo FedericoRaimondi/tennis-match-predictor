@@ -241,3 +241,50 @@ def test_load_matches_no_files(monkeypatch):
     monkeypatch.setattr(dl, "list_files", lambda: None)
     with pytest.raises(ValueError):
         dl.load_matches()
+
+
+def test_save_latest_player_stats_csv(sample_matches_df, tmp_path):
+    """Test saving latest player stats to CSV format."""
+    dl = DataLoader("dummy/repo")
+    cleaned = dl._basic_matches_cleaning(sample_matches_df.copy())
+    
+    output_file = tmp_path / "player_stats.csv"
+    result_path = dl.save_latest_player_stats(df=cleaned, output_path=str(output_file))
+    
+    assert result_path.exists()
+    assert result_path.suffix == ".csv"
+    
+    # Verify the saved data
+    saved_stats = pd.read_csv(result_path)
+    assert isinstance(saved_stats, pd.DataFrame)
+    assert "player_id" in saved_stats.columns
+    assert len(saved_stats) == 2  # Two unique players in sample data
+
+
+def test_save_latest_player_stats_parquet(sample_matches_df, tmp_path):
+    """Test saving latest player stats to Parquet format."""
+    dl = DataLoader("dummy/repo")
+    cleaned = dl._basic_matches_cleaning(sample_matches_df.copy())
+    
+    output_file = tmp_path / "player_stats.parquet"
+    result_path = dl.save_latest_player_stats(df=cleaned, output_path=str(output_file))
+    
+    assert result_path.exists()
+    assert result_path.suffix == ".parquet"
+    
+    # Verify the saved data
+    saved_stats = pd.read_parquet(result_path)
+    assert isinstance(saved_stats, pd.DataFrame)
+    assert "player_id" in saved_stats.columns
+
+
+def test_save_latest_player_stats_creates_directory(sample_matches_df, tmp_path):
+    """Test that save_latest_player_stats creates output directory if it doesn't exist."""
+    dl = DataLoader("dummy/repo")
+    cleaned = dl._basic_matches_cleaning(sample_matches_df.copy())
+    
+    output_file = tmp_path / "new_dir" / "player_stats.csv"
+    result_path = dl.save_latest_player_stats(df=cleaned, output_path=str(output_file))
+    
+    assert result_path.exists()
+    assert result_path.parent.exists()
