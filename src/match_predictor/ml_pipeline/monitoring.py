@@ -14,6 +14,7 @@ try:
         DatasetDriftMetric,
         DatasetMissingValuesMetric,
     )
+
     EVIDENTLY_METRICS_AVAILABLE = True
 except ImportError:
     EVIDENTLY_METRICS_AVAILABLE = False
@@ -31,9 +32,10 @@ class ModelMonitor:
         self.target_column = None
         self.prediction_column = None
 
-    def set_reference_data(self, df: pd.DataFrame, target_column: str = "winner", prediction_column: str = "prediction"):
-        """
-        Set reference data for drift detection.
+    def set_reference_data(
+        self, df: pd.DataFrame, target_column: str = "winner", prediction_column: str = "prediction"
+    ):
+        """Set reference data for drift detection.
 
         Args:
             df: Reference dataframe
@@ -46,8 +48,7 @@ class ModelMonitor:
         self.logger.info(f"Reference data set with {len(df)} samples")
 
     def set_current_data(self, df: pd.DataFrame):
-        """
-        Set current data for drift detection.
+        """Set current data for drift detection.
 
         Args:
             df: Current dataframe
@@ -56,8 +57,7 @@ class ModelMonitor:
         self.logger.info(f"Current data set with {len(df)} samples")
 
     def check_data_drift(self) -> dict[str, Any]:
-        """
-        Check for data drift between reference and current data.
+        """Check for data drift between reference and current data.
 
         Returns:
             Dictionary with drift detection results
@@ -70,23 +70,17 @@ class ModelMonitor:
         if not EVIDENTLY_METRICS_AVAILABLE:
             # Simplified drift detection
             self.logger.warning("Using simplified drift detection")
-            return {
-                "drift_detected": False,
-                "drift_share": 0.0,
-                "drifted_features": 0,
-                "requires_retraining": False
-            }
+            return {"drift_detected": False, "drift_share": 0.0, "drifted_features": 0, "requires_retraining": False}
 
         # Create data drift report
-        drift_report = Report(metrics=[
-            DatasetDriftMetric(),
-            DataDriftTable(),
-        ])
-
-        drift_report.run(
-            reference_data=self.reference_data,
-            current_data=self.current_data
+        drift_report = Report(
+            metrics=[
+                DatasetDriftMetric(),
+                DataDriftTable(),
+            ]
         )
+
+        drift_report.run(reference_data=self.reference_data, current_data=self.current_data)
 
         # Extract metrics
         drift_results = drift_report.as_dict()
@@ -94,10 +88,7 @@ class ModelMonitor:
         # Parse results - structure may vary by Evidently version
         try:
             metrics = drift_results.get("metrics", [])
-            dataset_drift_metric = next(
-                (m for m in metrics if m.get("metric") == "DatasetDriftMetric"),
-                None
-            )
+            dataset_drift_metric = next((m for m in metrics if m.get("metric") == "DatasetDriftMetric"), None)
 
             if dataset_drift_metric:
                 result = dataset_drift_metric.get("result", {})
@@ -113,21 +104,15 @@ class ModelMonitor:
                     "drift_detected": drift_detected,
                     "drift_share": drift_share,
                     "drifted_features": drifted_features,
-                    "requires_retraining": drift_detected and drift_share > 0.3
+                    "requires_retraining": drift_detected and drift_share > 0.3,
                 }
         except Exception as e:
             self.logger.warning(f"Error parsing drift results: {e}")
 
-        return {
-            "drift_detected": False,
-            "drift_share": 0.0,
-            "drifted_features": 0,
-            "requires_retraining": False
-        }
+        return {"drift_detected": False, "drift_share": 0.0, "drifted_features": 0, "requires_retraining": False}
 
     def check_data_quality(self) -> dict[str, Any]:
-        """
-        Check data quality metrics.
+        """Check data quality metrics.
 
         Returns:
             Dictionary with data quality results
@@ -143,16 +128,14 @@ class ModelMonitor:
             self.logger.info(f"Missing values: {missing_values}")
             return {
                 "missing_values": missing_values,
-                "data_quality_score": 1.0 - (missing_values / (len(self.current_data) * len(self.current_data.columns)))
+                "data_quality_score": 1.0
+                - (missing_values / (len(self.current_data) * len(self.current_data.columns))),
             }
 
         # Create data quality report
         quality_report = Report(metrics=[DatasetMissingValuesMetric()])
 
-        quality_report.run(
-            reference_data=self.reference_data,
-            current_data=self.current_data
-        )
+        quality_report.run(reference_data=self.reference_data, current_data=self.current_data)
 
         # Extract metrics
         quality_results = quality_report.as_dict()
@@ -170,12 +153,11 @@ class ModelMonitor:
 
         return {
             "missing_values": missing_values,
-            "data_quality_score": 1.0 - (missing_values / (len(self.current_data) * len(self.current_data.columns)))
+            "data_quality_score": 1.0 - (missing_values / (len(self.current_data) * len(self.current_data.columns))),
         }
 
     def check_model_performance(self, predictions: pd.Series, actual: pd.Series) -> dict[str, Any]:
-        """
-        Check model performance metrics.
+        """Check model performance metrics.
 
         Args:
             predictions: Model predictions
@@ -205,15 +187,11 @@ class ModelMonitor:
             "accuracy": accuracy,
             "precision": precision,
             "recall": recall,
-            "performance_degradation": accuracy < 0.60  # Threshold can be configured
+            "performance_degradation": accuracy < 0.60,  # Threshold can be configured
         }
 
-    def generate_monitoring_report(
-        self,
-        output_path: str | Path = "reports/monitoring_report.html"
-    ) -> None:
-        """
-        Generate comprehensive monitoring report.
+    def generate_monitoring_report(self, output_path: str | Path = "reports/monitoring_report.html") -> None:
+        """Generate comprehensive monitoring report.
 
         Args:
             output_path: Path to save the HTML report
@@ -227,26 +205,25 @@ class ModelMonitor:
             # Create simple HTML report
             output_path = Path(output_path)
             output_path.parent.mkdir(parents=True, exist_ok=True)
-            
-            with open(output_path, 'w') as f:
+
+            with open(output_path, "w") as f:
                 f.write("<html><body><h1>Monitoring Report</h1>")
                 f.write("<p>Evidently metrics not fully available. Using simplified monitoring.</p>")
                 f.write("</body></html>")
-            
+
             self.logger.info(f"Simple monitoring report saved to {output_path}")
             return
 
         # Create comprehensive report
-        report = Report(metrics=[
-            DatasetDriftMetric(),
-            DataDriftTable(),
-            DatasetMissingValuesMetric(),
-        ])
-
-        report.run(
-            reference_data=self.reference_data,
-            current_data=self.current_data
+        report = Report(
+            metrics=[
+                DatasetDriftMetric(),
+                DataDriftTable(),
+                DatasetMissingValuesMetric(),
+            ]
         )
+
+        report.run(reference_data=self.reference_data, current_data=self.current_data)
 
         # Save report
         output_path = Path(output_path)
@@ -256,12 +233,9 @@ class ModelMonitor:
         self.logger.info(f"Monitoring report saved to {output_path}")
 
     def should_trigger_retraining(
-        self,
-        drift_results: dict | None = None,
-        performance_results: dict | None = None
+        self, drift_results: dict | None = None, performance_results: dict | None = None
     ) -> tuple[bool, str]:
-        """
-        Determine if model retraining should be triggered.
+        """Determine if model retraining should be triggered.
 
         Args:
             drift_results: Results from data drift check
@@ -274,17 +248,11 @@ class ModelMonitor:
 
         # Check data drift
         if drift_results and drift_results.get("requires_retraining"):
-            reasons.append(
-                f"Significant data drift detected "
-                f"(drift share: {drift_results.get('drift_share', 0):.2%})"
-            )
+            reasons.append(f"Significant data drift detected (drift share: {drift_results.get('drift_share', 0):.2%})")
 
         # Check performance degradation
         if performance_results and performance_results.get("performance_degradation"):
-            reasons.append(
-                f"Performance degradation detected "
-                f"(accuracy: {performance_results.get('accuracy', 0):.4f})"
-            )
+            reasons.append(f"Performance degradation detected (accuracy: {performance_results.get('accuracy', 0):.4f})")
 
         should_retrain = len(reasons) > 0
 

@@ -4,15 +4,14 @@ import optuna
 from loguru import logger
 from sklearn.model_selection import cross_val_score
 
-from match_predictor.config import HyperparameterTuningConfig, ModelConfig
+from match_predictor.config import ModelConfig
 
 
 class HyperparameterTuner:
     """Class for hyperparameter tuning using Optuna."""
 
     def __init__(self, config: ModelConfig | None = None):
-        """
-        Initialize hyperparameter tuner.
+        """Initialize hyperparameter tuner.
 
         Args:
             config: Model configuration (optional, defaults to ModelConfig())
@@ -24,8 +23,7 @@ class HyperparameterTuner:
         self.study = None
 
     def objective(self, trial: optuna.Trial, model_class, X, y) -> float:
-        """
-        Objective function for Optuna optimization.
+        """Objective function for Optuna optimization.
 
         Args:
             trial: Optuna trial object
@@ -63,20 +61,12 @@ class HyperparameterTuner:
         model = model_class(**params)
 
         # Perform cross-validation
-        cv_scores = cross_val_score(
-            model,
-            X,
-            y,
-            cv=self.tuning_config.cv_folds,
-            scoring="accuracy",
-            n_jobs=-1
-        )
+        cv_scores = cross_val_score(model, X, y, cv=self.tuning_config.cv_folds, scoring="accuracy", n_jobs=-1)
 
         return cv_scores.mean()
 
     def tune(self, model_class, X, y) -> dict:
-        """
-        Perform hyperparameter tuning.
+        """Perform hyperparameter tuning.
 
         Args:
             model_class: ML model class to optimize
@@ -90,8 +80,7 @@ class HyperparameterTuner:
 
         # Create Optuna study
         self.study = optuna.create_study(
-            direction="maximize",
-            sampler=optuna.samplers.TPESampler(seed=self.tuning_config.random_state)
+            direction="maximize", sampler=optuna.samplers.TPESampler(seed=self.tuning_config.random_state)
         )
 
         # Run optimization
@@ -99,7 +88,7 @@ class HyperparameterTuner:
             lambda trial: self.objective(trial, model_class, X, y),
             n_trials=self.tuning_config.n_trials,
             timeout=self.tuning_config.timeout,
-            show_progress_bar=True
+            show_progress_bar=True,
         )
 
         self.best_params = self.study.best_params
@@ -118,8 +107,7 @@ class HyperparameterTuner:
         return best_params_full
 
     def get_optimization_history(self) -> list[dict]:
-        """
-        Get optimization history.
+        """Get optimization history.
 
         Returns:
             List of dictionaries containing trial information
@@ -129,18 +117,14 @@ class HyperparameterTuner:
 
         history = []
         for trial in self.study.trials:
-            history.append({
-                "trial_number": trial.number,
-                "value": trial.value,
-                "params": trial.params,
-                "state": trial.state.name
-            })
+            history.append(
+                {"trial_number": trial.number, "value": trial.value, "params": trial.params, "state": trial.state.name}
+            )
 
         return history
 
     def get_best_trial_info(self) -> dict:
-        """
-        Get information about the best trial.
+        """Get information about the best trial.
 
         Returns:
             Dictionary with best trial information
@@ -153,5 +137,5 @@ class HyperparameterTuner:
             "trial_number": best_trial.number,
             "value": best_trial.value,
             "params": best_trial.params,
-            "duration": best_trial.duration.total_seconds() if best_trial.duration else None
+            "duration": best_trial.duration.total_seconds() if best_trial.duration else None,
         }

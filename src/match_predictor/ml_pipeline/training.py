@@ -20,8 +20,7 @@ class ModelTrainer:
     """Class for training machine learning models."""
 
     def __init__(self, config: ModelConfig | None = None):
-        """
-        Initialize model trainer.
+        """Initialize model trainer.
 
         Args:
             config: Model configuration (optional, defaults to ModelConfig())
@@ -46,14 +45,8 @@ class ModelTrainer:
             self.logger.error(f"Failed to load estimator: {e}")
             raise
 
-    def train(
-        self,
-        df: pd.DataFrame,
-        tune_hyperparameters: bool = False,
-        log_to_mlflow: bool = True
-    ) -> dict:
-        """
-        Train the model.
+    def train(self, df: pd.DataFrame, tune_hyperparameters: bool = False, log_to_mlflow: bool = True) -> dict:
+        """Train the model.
 
         Args:
             df: Training dataframe with features and target
@@ -75,18 +68,16 @@ class ModelTrainer:
 
         # Split data
         X_train, X_test, y_train, y_test = train_test_split(
-            X, y,
-            test_size=self.config.training.test_size,
-            random_state=self.config.training.random_state,
-            stratify=y
+            X, y, test_size=self.config.training.test_size, random_state=self.config.training.random_state, stratify=y
         )
 
         # Further split train into train and validation
         X_train, X_val, y_train, y_val = train_test_split(
-            X_train, y_train,
+            X_train,
+            y_train,
             test_size=self.config.training.validation_size,
             random_state=self.config.training.random_state,
-            stratify=y_train
+            stratify=y_train,
         )
 
         self.logger.info(f"Training set size: {len(X_train)}")
@@ -125,7 +116,7 @@ class ModelTrainer:
             "val_accuracy": val_accuracy,
             "test_accuracy": test_accuracy,
             "hyperparameters": best_params,
-            "feature_count": len(self.feature_names)
+            "feature_count": len(self.feature_names),
         }
 
         self.logger.info(f"Validation accuracy: {val_accuracy:.4f}")
@@ -133,18 +124,11 @@ class ModelTrainer:
 
         # Log to MLflow if enabled
         if log_to_mlflow:
-            self._log_to_mlflow(
-                X_train, y_train, X_test, y_test,
-                val_accuracy, test_accuracy, best_params
-            )
+            self._log_to_mlflow(X_train, y_train, X_test, y_test, val_accuracy, test_accuracy, best_params)
 
         return self.training_metrics
 
-    def _log_to_mlflow(
-        self,
-        X_train, y_train, X_test, y_test,
-        val_accuracy, test_accuracy, params
-    ):
+    def _log_to_mlflow(self, X_train, y_train, X_test, y_test, val_accuracy, test_accuracy, params):
         """Log training run to MLflow."""
         mlflow.set_tracking_uri(self.config.mlflow.tracking_uri)
         mlflow.set_experiment(self.config.mlflow.experiment_name)
@@ -160,11 +144,7 @@ class ModelTrainer:
             mlflow.log_metric("test_size", len(X_test))
 
             # Log model
-            mlflow.xgboost.log_model(
-                self.model,
-                "model",
-                registered_model_name=self.config.mlflow.model_name
-            )
+            mlflow.xgboost.log_model(self.model, "model", registered_model_name=self.config.mlflow.model_name)
 
             # Log confusion matrix and classification report
             y_pred = self.model.predict(X_test)
@@ -177,8 +157,7 @@ class ModelTrainer:
             self.logger.info("Logged training run to MLflow")
 
     def save_model(self, path: str | Path):
-        """
-        Save the trained model.
+        """Save the trained model.
 
         Args:
             path: Path to save the model
@@ -190,18 +169,20 @@ class ModelTrainer:
         path.parent.mkdir(parents=True, exist_ok=True)
 
         with open(path, "wb") as f:
-            pickle.dump({
-                "model": self.model,
-                "feature_names": self.feature_names,
-                "config": self.config,
-                "metrics": self.training_metrics
-            }, f)
+            pickle.dump(
+                {
+                    "model": self.model,
+                    "feature_names": self.feature_names,
+                    "config": self.config,
+                    "metrics": self.training_metrics,
+                },
+                f,
+            )
 
         self.logger.info(f"Model saved to {path}")
 
     def load_model(self, path: str | Path):
-        """
-        Load a trained model.
+        """Load a trained model.
 
         Args:
             path: Path to load the model from
@@ -220,8 +201,7 @@ class ModelTrainer:
         self.logger.info(f"Model loaded from {path}")
 
     def should_promote_to_champion(self, champion_accuracy: float | None = None) -> bool:
-        """
-        Determine if the current model should be promoted to champion.
+        """Determine if the current model should be promoted to champion.
 
         Args:
             champion_accuracy: Accuracy of the current champion model (if exists)
@@ -250,12 +230,8 @@ class ModelTrainer:
 
         # Compare with champion
         if current_accuracy > champion_accuracy:
-            self.logger.info(
-                f"Model accuracy {current_accuracy:.4f} better than champion {champion_accuracy:.4f}"
-            )
+            self.logger.info(f"Model accuracy {current_accuracy:.4f} better than champion {champion_accuracy:.4f}")
             return True
 
-        self.logger.info(
-            f"Model accuracy {current_accuracy:.4f} not better than champion {champion_accuracy:.4f}"
-        )
+        self.logger.info(f"Model accuracy {current_accuracy:.4f} not better than champion {champion_accuracy:.4f}")
         return False

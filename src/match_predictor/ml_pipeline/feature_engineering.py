@@ -10,8 +10,7 @@ class FeatureEngineer:
     """Class for feature engineering operations."""
 
     def __init__(self, config: DataConfig | None = None):
-        """
-        Initialize feature engineer.
+        """Initialize feature engineer.
 
         Args:
             config: Data configuration (optional, defaults to DataConfig())
@@ -20,8 +19,7 @@ class FeatureEngineer:
         self.logger = logger
 
     def engineer_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Apply feature engineering transformations.
+        """Apply feature engineering transformations.
 
         Args:
             df: Input dataframe with match data
@@ -79,8 +77,7 @@ class FeatureEngineer:
         return df
 
     def prepare_features_for_training(self, df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
-        """
-        Prepare features for model training.
+        """Prepare features for model training.
 
         Args:
             df: Input dataframe with engineered features
@@ -105,7 +102,10 @@ class FeatureEngineer:
             "opponent_name",
         ]
 
-        feature_columns = [col for col in df.columns if col not in exclude_columns]
+        # exclude datetime64[ns]
+        date_columns = df.select_dtypes(include="datetime64[ns]").columns.tolist()
+
+        feature_columns = [col for col in df.columns if col not in exclude_columns + date_columns]
 
         # Check if target exists
         if "winner" not in df.columns:
@@ -115,7 +115,7 @@ class FeatureEngineer:
         y = df["winner"].copy()
 
         # Handle missing values
-        X = X.fillna(X.median())
+        # X = X.fillna(X.median())
 
         # Convert categorical columns to numeric if needed
         for col in X.select_dtypes(include=["object", "category"]).columns:
@@ -125,8 +125,7 @@ class FeatureEngineer:
         return X, y
 
     def get_feature_names(self, df: pd.DataFrame) -> list[str]:
-        """
-        Get list of feature names that will be used for training.
+        """Get list of feature names that will be used for training.
 
         Args:
             df: Input dataframe
@@ -148,4 +147,9 @@ class FeatureEngineer:
             "opponent_name",
         ]
 
-        return [col for col in df.columns if col not in exclude_columns]
+        # exclude datetime64[ns]
+        date_columns = df.select_dtypes(include="datetime64[ns]").columns.tolist()
+
+        feature_columns = [col for col in df.columns if col not in exclude_columns + date_columns]
+
+        return feature_columns
