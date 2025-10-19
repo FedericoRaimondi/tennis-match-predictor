@@ -2,7 +2,7 @@ from unittest.mock import Mock, patch
 
 import pandas as pd
 
-from tennis_match_predictor.utils import gh_utils
+from match_predictor.utils import gh_utils
 
 
 def test_list_github_files_success():

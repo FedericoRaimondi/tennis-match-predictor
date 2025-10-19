@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from tennis_match_predictor.data.data_loader import DataLoader
+from match_predictor.data.data_loader import DataLoader
 
 
 @pytest.fixture
@@ -66,7 +66,7 @@ def sample_matches_df():
 def data_loader(monkeypatch):
     dl = DataLoader("dummy/repo")
     monkeypatch.setattr(dl, "list_files", lambda: ["atp_matches_2021.csv"])
-    monkeypatch.setattr("tennis_match_predictor.utils.gh_utils.read_csv_from_github", lambda repo, file: pd.DataFrame())
+    monkeypatch.setattr("match_predictor.utils.gh_utils.read_csv_from_github", lambda repo, file: pd.DataFrame())
     return dl
 
 
@@ -153,7 +153,7 @@ def test_get_ml_data_missing_columns():
 def test_list_files_success(monkeypatch):
     dl = DataLoader("dummy/repo")
     monkeypatch.setattr(
-        "tennis_match_predictor.data.data_loader.list_github_files", lambda repo: ["file1.csv", "file2.csv"]
+        "match_predictor.data.data_loader.list_github_files", lambda repo: ["file1.csv", "file2.csv"]
     )
     files = dl.list_files()
     assert files == ["file1.csv", "file2.csv"]
@@ -161,7 +161,7 @@ def test_list_files_success(monkeypatch):
 
 def test_list_files_failure(monkeypatch):
     dl = DataLoader("dummy/repo")
-    monkeypatch.setattr("tennis_match_predictor.data.data_loader.list_github_files", lambda repo: None)
+    monkeypatch.setattr("match_predictor.data.data_loader.list_github_files", lambda repo: None)
     assert dl.list_files() is None
 
 
@@ -226,7 +226,7 @@ def test_load_matches_success(monkeypatch):
     df2["tourney_id"] = "2022-001"
     df2["tourney_date"] = "20220101"
     monkeypatch.setattr(
-        "tennis_match_predictor.data.data_loader.read_csv_from_github",
+        "match_predictor.data.data_loader.read_csv_from_github",
         lambda repo, file: df1 if "2021" in file else df2,
     )
     result = dl.load_matches()

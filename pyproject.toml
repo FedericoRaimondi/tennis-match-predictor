@@ -1,5 +1,5 @@
 [project]
-name = "tennis-match-predictor"
+name = "match-predictor"
 version = "0.1.0"
 description = "Tennis match predictor app"
 readme = "README.md"
@@ -27,14 +27,14 @@ dev = [
 ]
 
 [project.scripts]
-main = 'tennis_match_predictor.main:main'
+main = 'match_predictor.main:main'
 
 [build-system]
 requires = ["uv_build>=0.7.19,<0.8.0"]
 build-backend = "uv_build"
 
 [tool.pytest.ini_options]
-addopts = "--verbosity=2 --cov=tennis_match_predictor --cov-report html"
+addopts = "--verbosity=2 --cov=match_predictor --cov-report html"
 pythonpath = ["src"]
 
 [tool.ruff]
