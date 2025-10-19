@@ -130,7 +130,10 @@ def test_hyperparameter_tuner_search_space():
     """Test that objective creates proper search space."""
     import optuna
 
-    tuner = HyperparameterTuner()
+    # Create config with fewer cv_folds to match small dataset
+    config = ModelConfig()
+    config.hyperparameter_tuning = HyperparameterTuningConfig(cv_folds=2)
+    tuner = HyperparameterTuner(config=config)
     study = optuna.create_study()
     trial = study.ask()
 

@@ -114,6 +114,8 @@ def test_model_monitor_check_data_quality_no_data():
 
 def test_model_monitor_check_data_quality(sample_reference_data, sample_current_data):
     """Test data quality check."""
+    import numpy as np
+    
     monitor = ModelMonitor()
     monitor.set_reference_data(sample_reference_data)
     monitor.set_current_data(sample_current_data)
@@ -122,7 +124,7 @@ def test_model_monitor_check_data_quality(sample_reference_data, sample_current_
 
     assert "missing_values" in quality_results
     assert "data_quality_score" in quality_results
-    assert isinstance(quality_results["missing_values"], (int, float))
+    assert isinstance(quality_results["missing_values"], (int, float, np.integer))
     assert 0.0 <= quality_results["data_quality_score"] <= 1.0
 
 
