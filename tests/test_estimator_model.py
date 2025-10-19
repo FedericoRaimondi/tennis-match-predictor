@@ -237,8 +237,13 @@ estimator:
 
         model.fit(X, y)
 
-        # Remove the score method to simulate a model without it
-        delattr(model.model, "score")
+        # Create a mock model without score method
+        class MockModelWithoutScore:
+            def predict(self, X):
+                return [0, 1, 0]
+
+        # Replace model with mock
+        model.model = MockModelWithoutScore()
 
         with pytest.raises(NotImplementedError, match="does not implement a 'score' method"):
             model.evaluate(X, y)

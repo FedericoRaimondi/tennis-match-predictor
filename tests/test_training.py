@@ -88,7 +88,8 @@ def test_model_trainer_train_without_tuning(mock_feature_engineer, quick_config,
     # Mock feature engineer
     mock_fe_instance = MagicMock()
     mock_fe_instance.engineer_features.return_value = sample_training_data
-    X = sample_training_data.drop(columns=["results"])
+    # Exclude columns that XGBoost doesn't accept (object, datetime)
+    X = sample_training_data.drop(columns=["results", "tourney_id", "tourney_date", "match_num", "player_id", "opponent_id"])
     y = sample_training_data["results"]
     mock_fe_instance.prepare_features_for_training.return_value = (X, y)
     mock_feature_engineer.return_value = mock_fe_instance
@@ -115,7 +116,8 @@ def test_model_trainer_train_with_tuning(
     # Mock feature engineer
     mock_fe_instance = MagicMock()
     mock_fe_instance.engineer_features.return_value = sample_training_data
-    X = sample_training_data.drop(columns=["results"])
+    # Exclude columns that XGBoost doesn't accept (object, datetime)
+    X = sample_training_data.drop(columns=["results", "tourney_id", "tourney_date", "match_num", "player_id", "opponent_id"])
     y = sample_training_data["results"]
     mock_fe_instance.prepare_features_for_training.return_value = (X, y)
     mock_feature_engineer.return_value = mock_fe_instance
@@ -140,7 +142,8 @@ def test_model_trainer_save_model(quick_config, sample_training_data):
         # Mock feature engineer
         mock_fe_instance = MagicMock()
         mock_fe_instance.engineer_features.return_value = sample_training_data
-        X = sample_training_data.drop(columns=["results"])
+        # Exclude columns that XGBoost doesn't accept (object, datetime)
+        X = sample_training_data.drop(columns=["results", "tourney_id", "tourney_date", "match_num", "player_id", "opponent_id"])
         y = sample_training_data["results"]
         mock_fe_instance.prepare_features_for_training.return_value = (X, y)
         mock_fe.return_value = mock_fe_instance
@@ -172,7 +175,8 @@ def test_model_trainer_load_model(quick_config, sample_training_data):
         # Mock feature engineer
         mock_fe_instance = MagicMock()
         mock_fe_instance.engineer_features.return_value = sample_training_data
-        X = sample_training_data.drop(columns=["results"])
+        # Exclude columns that XGBoost doesn't accept (object, datetime)
+        X = sample_training_data.drop(columns=["results", "tourney_id", "tourney_date", "match_num", "player_id", "opponent_id"])
         y = sample_training_data["results"]
         mock_fe_instance.prepare_features_for_training.return_value = (X, y)
         mock_fe.return_value = mock_fe_instance
@@ -254,7 +258,8 @@ def test_model_trainer_log_to_mlflow(mock_feature_engineer, mock_mlflow, quick_c
     # Mock feature engineer
     mock_fe_instance = MagicMock()
     mock_fe_instance.engineer_features.return_value = sample_training_data
-    X = sample_training_data.drop(columns=["results"])
+    # Exclude columns that XGBoost doesn't accept (object, datetime)
+    X = sample_training_data.drop(columns=["results", "tourney_id", "tourney_date", "match_num", "player_id", "opponent_id"])
     y = sample_training_data["results"]
     mock_fe_instance.prepare_features_for_training.return_value = (X, y)
     mock_feature_engineer.return_value = mock_fe_instance
@@ -274,7 +279,8 @@ def test_model_trainer_feature_names_stored(quick_config, sample_training_data):
         # Mock feature engineer
         mock_fe_instance = MagicMock()
         mock_fe_instance.engineer_features.return_value = sample_training_data
-        X = sample_training_data.drop(columns=["results"])
+        # Exclude columns that XGBoost doesn't accept (object, datetime)
+        X = sample_training_data.drop(columns=["results", "tourney_id", "tourney_date", "match_num", "player_id", "opponent_id"])
         y = sample_training_data["results"]
         mock_fe_instance.prepare_features_for_training.return_value = (X, y)
         mock_fe.return_value = mock_fe_instance
