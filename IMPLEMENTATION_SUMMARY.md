@@ -85,7 +85,7 @@ This document summarizes the complete implementation of the Tennis Match Predict
 **Location**: `tests/`
 
 **Test Coverage**:
-- ✅ 49 comprehensive tests covering:
+- ✅ 61 comprehensive tests covering:
   - API endpoints (`test_api.py`)
   - Configuration validation (`test_config.py`)
   - Feature engineering (`test_feature_engineering.py`)
@@ -158,7 +158,7 @@ All workflows are **paused by default** (use `workflow_dispatch` only). Uncommen
 │   ├── data_config.py            ✅ Pydantic data config
 │   └── model_config.py           ✅ Pydantic model config
 │
-├── tests/                        ✅ pytest tests (49 passing)
+├── tests/                        ✅ pytest tests (61 passing)
 ├── data/                         ✅ Inference data only
 ├── models/                       ✅ Champion model storage
 ├── docs/                         ✅ MkDocs documentation
@@ -207,7 +207,7 @@ All workflows are **paused by default** (use `workflow_dispatch` only). Uncommen
 
 ## 📊 Metrics
 
-- **Tests**: 49 passing (100% pass rate)
+- **Tests**: 61 passing (100% pass rate)
 - **Test Coverage**: Comprehensive coverage across all modules
 - **Code Organization**: Modular structure with clear separation of concerns
 - **Documentation**: Complete with examples and API reference

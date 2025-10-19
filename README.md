@@ -104,7 +104,10 @@ A complete end-to-end machine learning system for predicting tennis match outcom
 │   ├── test_api.py
 │   ├── test_config.py
 │   ├── test_data_loader.py
-│   └── test_feature_engineering.py
+│   ├── test_feature_engineering.py
+│   ├── test_flows.py
+│   ├── test_gh_utils.py
+│   └── test_stats_helpers.py
 │
 ├── data/                        # Inference data only
 │   ├── matches_results.pkl
@@ -112,6 +115,11 @@ A complete end-to-end machine learning system for predicting tennis match outcom
 │
 ├── models/                      # Champion model storage
 │   └── .gitkeep
+│
+├── notebook/                    # Jupyter notebooks for exploration
+│   ├── tennis_eda.ipynb        # Exploratory data analysis
+│   ├── data_engineering.ipynb  # Feature engineering experiments
+│   └── ml_experimenting.ipynb  # Model experimentation
 │
 ├── docs/                        # MkDocs documentation
 │   ├── index.md
@@ -421,8 +429,9 @@ The project includes comprehensive tests:
 - **Integration Tests**: API and pipeline testing
 - **Feature Tests**: Feature engineering validation
 - **Config Tests**: Configuration validation
+- **Flow Tests**: Prefect workflow testing
 
-Test coverage: 49+ tests covering all major components.
+Test coverage: 61+ tests covering all major components.
 
 ## 📝 Data Source
 
