@@ -1,0 +1,121 @@
+name: Monitoring Pipeline
+
+# This workflow is PAUSED - uncomment 'on' section to enable
+# on:
+#   schedule:
+#     # Run monthly on the 15th at 00:00 UTC
+#     - cron: '0 0 15 * *'
+#   workflow_dispatch:
+
+on:
+  workflow_dispatch:  # Manual trigger only for now
+
+jobs:
+  check-drift:
+    runs-on: ubuntu-latest
+    outputs:
+      should_retrain: ${{ steps.monitor.outputs.should_retrain }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          uv sync
+
+      - name: Check for new data
+        id: data_check
+        run: |
+          # This will be handled by the Prefect flow
+          echo "has_new_data=true" >> $GITHUB_OUTPUT
+
+      - name: Run monitoring pipeline with Prefect
+        id: monitor
+        run: |
+          # Run the Prefect monitoring flow
+          set +e  # Don't exit on error
+          uv run monitor-model
+          EXIT_CODE=$?
+          set -e
+          
+          # Exit code 2 means retraining is needed
+          if [ $EXIT_CODE -eq 2 ]; then
+            echo "should_retrain=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_retrain=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload monitoring report
+        if: steps.data_check.outputs.has_new_data == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: monitoring-report
+          path: reports/monitoring_report.html
+
+      - name: Create issue for drift detection
+        if: steps.monitor.outputs.should_retrain == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '⚠️ Data Drift Detected - Retraining Required',
+              body: `## Data Drift Alert
+              
+              Significant data drift has been detected in the monitoring pipeline.
+              
+              **Action Required**: Model retraining is recommended.
+              
+              ### Details
+              - Monitoring run: ${{ github.run_number }}
+              - Date: ${new Date().toISOString()}
+              
+              ### Next Steps
+              1. Review the monitoring report (attached to workflow artifacts)
+              2. Trigger the training pipeline manually or wait for the next scheduled run
+              3. Evaluate the new model performance
+              
+              ### Resources
+              - [Monitoring Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+              - [Training Pipeline](${{ github.server_url }}/${{ github.repository }}/actions/workflows/training.yml)
+              `,
+              labels: ['monitoring', 'data-drift', 'ml-ops']
+            })
+
+  trigger-retraining:
+    runs-on: ubuntu-latest
+    needs: check-drift
+    if: needs.check-drift.outputs.should_retrain == 'true'
+
+    steps:
+      - name: Trigger training pipeline
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'training.yml',
+              ref: 'main',
+              inputs: {
+                tune_hyperparameters: 'true'
+              }
+            })
+
+      - name: Notify via comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            console.log('Training pipeline triggered due to data drift detection')

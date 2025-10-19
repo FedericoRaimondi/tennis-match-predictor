@@ -187,3 +187,12 @@ data/matches_results.pkl
 mlruns/*
 !mlruns/models/
 !mlruns/models/**
+
+# MkDocs build
+site/
+
+# Monitoring reports
+reports/
+
+# Temporary model files
+models/*.pkl

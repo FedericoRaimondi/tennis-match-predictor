@@ -1,0 +1,79 @@
+name: CI - Tests and Linting
+
+# This workflow is PAUSED - uncomment 'on' section to enable
+# on:
+#   pull_request:
+#     branches:
+#       - main
+#   push:
+#     branches:
+#       - main
+
+on:
+  workflow_dispatch:  # Manual trigger only for now
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.13']
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          uv sync
+
+      - name: Run linting with ruff
+        run: |
+          uv run ruff check src/ tests/
+
+      - name: Run tests
+        run: |
+          uv run pytest tests/ -v --cov=match_predictor --cov-report=xml --cov-report=html
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        if: matrix.python-version == '3.13'
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+  type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          uv sync
+
+      - name: Check code formatting
+        run: |
+          uv run ruff format --check src/ tests/

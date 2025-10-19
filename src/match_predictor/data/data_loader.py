@@ -6,8 +6,8 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
-from tennis_match_predictor.utils.gh_utils import list_github_files, read_csv_from_github
-from tennis_match_predictor.utils.stats_helpers import add_rolling_stats, calculate_elo
+from match_predictor.utils.gh_utils import list_github_files, read_csv_from_github
+from match_predictor.utils.stats_helpers import add_rolling_stats, calculate_elo
 
 
 class DataLoader:

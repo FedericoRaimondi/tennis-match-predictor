@@ -1,4 +1,7 @@
+# Model configuration for Tennis Match Predictor
+
 model_name: atp_match_predictor
+
 estimator:
   module: xgboost
   class_name: XGBClassifier
@@ -11,3 +14,22 @@ estimator:
     max_depth: 3
     learning_rate: 0.01
     colsample_bytree: 0.5
+
+hyperparameter_tuning:
+  n_trials: 50
+  cv_folds: 5
+  random_state: 42
+  timeout: 3600
+
+training:
+  test_size: 0.2
+  validation_size: 0.2
+  random_state: 42
+  min_accuracy_threshold: 0.60
+
+mlflow:
+  experiment_name: "tennis-match-predictor"
+  tracking_uri: "file:./mlruns"
+  model_name: "tennis_predictor_model"
+
+champion_model_path: "models/"

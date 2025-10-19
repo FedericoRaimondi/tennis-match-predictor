@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from tennis_match_predictor.utils import stats_helpers
+from match_predictor.utils import stats_helpers
 
 
 @pytest.fixture

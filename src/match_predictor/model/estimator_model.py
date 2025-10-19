@@ -6,7 +6,7 @@ from typing import Union
 import numpy as np
 import pandas as pd
 
-from tennis_match_predictor.model.base_model import BaseModel
+from match_predictor.model.base_model import BaseModel
 
 
 class EstimatorModel(BaseModel):

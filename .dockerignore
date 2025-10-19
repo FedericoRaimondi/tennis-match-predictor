@@ -1,0 +1,70 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+docs/_build/
+site/
+
+# Notebooks
+.ipynb_checkpoints/
+notebook/
+
+# MLflow
+mlruns/
+
+# Large data files (keep only essential inference data)
+data/*.csv
+data/player_stats_hist.pkl
+data/ml_dataset.pkl
+
+# Test files
+test/
+tests/
+
+# CI/CD
+.github/
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Misc
+README.md
+LICENSE
+.python-version
