@@ -9,6 +9,7 @@ authors = [
 requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.116.1",
+    "uvicorn[standard]>=0.35.0",
     "matplotlib>=3.10.3",
     "mlflow==3.1.4",
     "numpy==2.2.5",
@@ -17,6 +18,13 @@ dependencies = [
     "scikit-learn==1.6.1",
     "xgboost==3.0.2",
     "loguru==0.7.0",
+    "streamlit>=1.40.0",
+    "pydantic>=2.11.0",
+    "pydantic-settings>=2.7.0",
+    "plotly>=5.24.0",
+    "evidently>=0.4.0",
+    "optuna>=4.2.0",
+    "pyyaml>=6.0.0",
 ]
 
 [dependency-groups]
@@ -24,6 +32,12 @@ dev = [
     "ipykernel==6.29.5",
     "pytest==8.4.1",
     "pytest-cov==6.2.1",
+    "pytest-asyncio>=0.24.0",
+    "httpx>=0.28.0",
+    "mkdocs>=1.6.0",
+    "mkdocs-material>=9.5.0",
+    "mkdocstrings[python]>=0.27.0",
+    "ruff>=0.9.0",
 ]
 
 [project.scripts]
