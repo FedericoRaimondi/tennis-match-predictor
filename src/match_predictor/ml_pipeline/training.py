@@ -144,7 +144,9 @@ class ModelTrainer:
             mlflow.log_metric("test_size", len(X_test))
 
             # Log model
-            mlflow.xgboost.log_model(self.model, "model", registered_model_name=self.config.mlflow.model_name)
+            mlflow.xgboost.log_model(
+                self.model, "model", registered_model_name=self.config.mlflow.model_name, input_example=X_train.iloc[:5]
+            )
 
             # Log confusion matrix and classification report
             y_pred = self.model.predict(X_test)
