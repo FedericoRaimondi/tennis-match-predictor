@@ -69,7 +69,7 @@ def health_check() -> dict[str, str]:
 
 
 @app.get("/info")
-def info() -> dict[str, str]:
+def info() -> dict[str, str | bool]:
     """Get API information."""
     return {
         "name": "tennis_predictor",

@@ -1,0 +1,182 @@
+name: Monitoring Pipeline
+
+# This workflow is PAUSED - uncomment 'on' section to enable
+# on:
+#   schedule:
+#     # Run monthly on the 15th at 00:00 UTC
+#     - cron: '0 0 15 * *'
+#   workflow_dispatch:
+
+on:
+  workflow_dispatch:  # Manual trigger only for now
+
+jobs:
+  check-drift:
+    runs-on: ubuntu-latest
+    outputs:
+      should_retrain: ${{ steps.monitor.outputs.should_retrain }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          uv sync
+
+      - name: Check for new data
+        id: data_check
+        run: |
+          # Check if new data is available
+          NEW_DATA=$(uv run python -c "
+          from match_predictor.data.data_loader import DataLoader
+          import pickle
+          
+          loader = DataLoader('JeffSackmann/tennis_atp')
+          
+          # Get latest data from source
+          new_matches = loader.load_matches()
+          
+          # Load existing data
+          try:
+              with open('data/matches_results.pkl', 'rb') as f:
+                  existing_matches = pickle.load(f)
+              
+              # Compare counts
+              new_count = len(new_matches)
+              existing_count = len(existing_matches)
+              
+              print(new_count > existing_count)
+          except FileNotFoundError:
+              print('true')
+          ")
+          
+          echo "has_new_data=$NEW_DATA" >> $GITHUB_OUTPUT
+
+      - name: Run drift detection
+        id: monitor
+        if: steps.data_check.outputs.has_new_data == 'true'
+        run: |
+          uv run python -c "
+          import pickle
+          import pandas as pd
+          from match_predictor.data.data_loader import DataLoader
+          from match_predictor.ml_pipeline.monitoring import ModelMonitor
+          from match_predictor.ml_pipeline.feature_engineering import FeatureEngineer
+
+          # Load data
+          loader = DataLoader('JeffSackmann/tennis_atp')
+          
+          # Get reference data (existing)
+          with open('data/matches_results.pkl', 'rb') as f:
+              reference_matches = pickle.load(f)
+          
+          # Get current data (new)
+          current_matches = loader.load_matches()
+          
+          # Prepare datasets
+          reference_ml = loader.get_ml_data(df=reference_matches)
+          current_ml = loader.get_ml_data(df=current_matches)
+          
+          # Engineer features
+          engineer = FeatureEngineer()
+          reference_features = engineer.engineer_features(reference_ml)
+          current_features = engineer.engineer_features(current_ml)
+          
+          # Prepare for monitoring
+          X_ref, y_ref = engineer.prepare_features_for_training(reference_features)
+          X_cur, y_cur = engineer.prepare_features_for_training(current_features)
+          
+          # Monitor drift
+          monitor = ModelMonitor()
+          monitor.set_reference_data(X_ref.assign(winner=y_ref))
+          monitor.set_current_data(X_cur.assign(winner=y_cur))
+          
+          drift_results = monitor.check_data_drift()
+          
+          print(f'Drift detected: {drift_results[\"drift_detected\"]}')
+          print(f'Drift share: {drift_results[\"drift_share\"]:.2%}')
+          print(f'Requires retraining: {drift_results[\"requires_retraining\"]}')
+          
+          # Generate monitoring report
+          monitor.generate_monitoring_report('reports/monitoring_report.html')
+          
+          # Output for next step
+          import os
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f'should_retrain={str(drift_results[\"requires_retraining\"]).lower()}\n')
+          "
+
+      - name: Upload monitoring report
+        if: steps.data_check.outputs.has_new_data == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: monitoring-report
+          path: reports/monitoring_report.html
+
+      - name: Create issue for drift detection
+        if: steps.monitor.outputs.should_retrain == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '⚠️ Data Drift Detected - Retraining Required',
+              body: `## Data Drift Alert
+              
+              Significant data drift has been detected in the monitoring pipeline.
+              
+              **Action Required**: Model retraining is recommended.
+              
+              ### Details
+              - Monitoring run: ${{ github.run_number }}
+              - Date: ${new Date().toISOString()}
+              
+              ### Next Steps
+              1. Review the monitoring report (attached to workflow artifacts)
+              2. Trigger the training pipeline manually or wait for the next scheduled run
+              3. Evaluate the new model performance
+              
+              ### Resources
+              - [Monitoring Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+              - [Training Pipeline](${{ github.server_url }}/${{ github.repository }}/actions/workflows/training.yml)
+              `,
+              labels: ['monitoring', 'data-drift', 'ml-ops']
+            })
+
+  trigger-retraining:
+    runs-on: ubuntu-latest
+    needs: check-drift
+    if: needs.check-drift.outputs.should_retrain == 'true'
+
+    steps:
+      - name: Trigger training pipeline
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'training.yml',
+              ref: 'main',
+              inputs: {
+                tune_hyperparameters: 'true'
+              }
+            })
+
+      - name: Notify via comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            console.log('Training pipeline triggered due to data drift detection')
