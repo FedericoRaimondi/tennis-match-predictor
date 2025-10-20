@@ -51,11 +51,11 @@ class DataConfig(BaseModel):
     source: DataSourceConfig = Field(default_factory=DataSourceConfig)
     features: FeatureConfig = Field(default_factory=FeatureConfig)
     inference_data_path: str = Field(default="data/", description="Path to store inference data")
-    matches_results_file: str = Field(default="matches_results.pkl", description="Filename for matches results data")
-    tournament_info_file: str = Field(default="tournament_info.pkl", description="Filename for tournament info data")
+    matches_results_file: str = Field(default="matches_results.csv", description="Filename for matches results data")
+    tournament_info_file: str = Field(default="tournament_info.csv", description="Filename for tournament info data")
 
     player_stats_file: str = Field(
-        default="player_stats_latest.pkl", description="Filename for latest player stats data"
+        default="player_stats_latest.csv", description="Filename for latest player stats data"
     )
 
     @classmethod

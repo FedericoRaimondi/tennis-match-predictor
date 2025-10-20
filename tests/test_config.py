@@ -25,7 +25,7 @@ def test_feature_config_defaults():
     config = FeatureConfig()
     assert config.rolling_windows == [3, 5, 10]
     assert len(config.stats_columns_mean) > 0
-    assert "p_ace" in config.stats_columns_mean
+    assert "ace" in config.stats_columns_mean
     assert config.elo_k_factor == 32.0
 
 
@@ -133,13 +133,13 @@ def test_feature_config_stats_columns_sum():
 def test_data_config_matches_results_file():
     """Test DataConfig matches_results_file default."""
     config = DataConfig()
-    assert config.matches_results_file == "matches_results.pkl"
+    assert config.matches_results_file == "matches_results.csv"
 
 
 def test_data_config_tournament_info_file():
     """Test DataConfig tournament_info_file default."""
     config = DataConfig()
-    assert config.tournament_info_file == "tournament_info.pkl"
+    assert config.tournament_info_file == "tournament_info.csv"
 
 
 def test_estimator_config_custom_params():
@@ -269,7 +269,7 @@ def test_feature_config_all_stats_columns():
     """Test FeatureConfig stats columns."""
     config = FeatureConfig()
     assert len(config.stats_columns_mean) > 10
-    assert "p_ace" in config.stats_columns_mean
+    assert "ace" in config.stats_columns_mean
     assert "minutes" in config.stats_columns_sum
     assert "results" in config.stats_columns_sum
 
