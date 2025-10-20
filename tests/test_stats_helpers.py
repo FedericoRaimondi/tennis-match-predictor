@@ -8,7 +8,7 @@ from match_predictor.utils import stats_helpers
 def sample_df():
     # Create a simple DataFrame for rolling stats
     data = {
-        "player_id": [1, 1, 1, 2, 2, 2],
+        "p_id": [1, 1, 1, 2, 2, 2],
         "tourney_date": pd.to_datetime(
             ["2021-01-01", "2021-01-02", "2021-01-03", "2021-01-01", "2021-01-02", "2021-01-03"]
         ),
@@ -119,8 +119,8 @@ def test_add_rolling_stats_median(sample_df):
 def sample_elo_df():
     # Create a simple DataFrame for ELO testing
     data = {
-        "player_id": [1, 2, 1, 2, 1],
-        "opponent_id": [2, 1, 2, 1, 2],
+        "p_id": [1, 2, 1, 2, 1],
+        "o_id": [2, 1, 2, 1, 2],
         "tourney_date": pd.to_datetime(["2021-01-01", "2021-01-02", "2021-01-03", "2021-01-04", "2021-01-05"]),
         "tourney_id": ["A", "A", "A", "A", "A"],
         "match_num": [1, 2, 3, 4, 5],
@@ -140,8 +140,8 @@ def test_calculate_elo_basic(sample_elo_df):
 
 def test_calculate_elo_winner_increases():
     data = {
-        "player_id": [1, 1],
-        "opponent_id": [2, 2],
+        "p_id": [1, 1],
+        "o_id": [2, 2],
         "tourney_date": pd.to_datetime(["2021-01-01", "2021-01-02"]),
         "tourney_id": ["A", "A"],
         "match_num": [1, 2],
@@ -156,8 +156,8 @@ def test_calculate_elo_winner_increases():
 
 def test_calculate_elo_custom_k_factor():
     data = {
-        "player_id": [1, 2],
-        "opponent_id": [2, 1],
+        "p_id": [1, 2],
+        "o_id": [2, 1],
         "tourney_date": pd.to_datetime(["2021-01-01", "2021-01-02"]),
         "tourney_id": ["A", "A"],
         "match_num": [1, 2],
@@ -174,8 +174,8 @@ def test_calculate_elo_custom_k_factor():
 
 def test_calculate_elo_custom_base_elo():
     data = {
-        "player_id": [1, 2],
-        "opponent_id": [2, 1],
+        "p_id": [1, 2],
+        "o_id": [2, 1],
         "tourney_date": pd.to_datetime(["2021-01-01", "2021-01-02"]),
         "tourney_id": ["A", "A"],
         "match_num": [1, 2],
@@ -197,8 +197,8 @@ def test_calculate_elo_consistent_updates(sample_elo_df):
 
 def test_calculate_elo_multiple_players():
     data = {
-        "player_id": [1, 2, 3, 1, 2, 3],
-        "opponent_id": [2, 3, 1, 3, 1, 2],
+        "p_id": [1, 2, 3, 1, 2, 3],
+        "o_id": [2, 3, 1, 3, 1, 2],
         "tourney_date": pd.to_datetime(
             ["2021-01-01", "2021-01-02", "2021-01-03", "2021-01-04", "2021-01-05", "2021-01-06"]
         ),
@@ -251,8 +251,8 @@ def test_calculate_elo_preserves_original_columns(sample_elo_df):
 def test_calculate_elo_sorted_chronologically():
     # Create unsorted data
     data = {
-        "player_id": [1, 1, 1],
-        "opponent_id": [2, 2, 2],
+        "p_id": [1, 1, 1],
+        "o_id": [2, 2, 2],
         "tourney_date": pd.to_datetime(["2021-01-03", "2021-01-01", "2021-01-02"]),
         "tourney_id": ["A", "A", "A"],
         "match_num": [3, 1, 2],
@@ -263,5 +263,5 @@ def test_calculate_elo_sorted_chronologically():
 
     # ELO should be calculated chronologically
     # First chronological match should start at base ELO
-    first_match_idx = result_df.sort_values(["player_id", "tourney_date", "tourney_id", "match_num"]).index[0]
+    first_match_idx = result_df.sort_values(["p_id", "tourney_date", "tourney_id", "match_num"]).index[0]
     assert result_df.loc[first_match_idx, "elo_rating"] == 1500.0
