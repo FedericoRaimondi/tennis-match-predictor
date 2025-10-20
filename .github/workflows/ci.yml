@@ -1,23 +1,23 @@
 name: CI - Tests and Linting
 
 # This workflow is PAUSED - uncomment 'on' section to enable
-# on:
-#   pull_request:
-#     branches:
-#       - main
-#   push:
-#     branches:
-#       - main
-
 on:
-  workflow_dispatch:  # Manual trigger only for now
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+# on:
+#   workflow_dispatch:  # Manual trigger only for now
 
 jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.13']
+        python-version: ["3.13"]
 
     steps:
       - name: Checkout code
@@ -63,7 +63,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: "3.13"
 
       - name: Install uv
         run: |

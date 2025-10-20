@@ -299,7 +299,7 @@ def monitoring_flow(
     return {"has_new_data": has_new_data, "drift_results": drift_results, "should_retrain": should_retrain}
 
 
-def run_training_flow():
+def run_training_flow():  # pragma: no cover
     """Entrypoint for training flow CLI."""
     import sys
 
@@ -316,7 +316,7 @@ def run_training_flow():
         sys.exit(1)
 
 
-def run_monitoring_flow():
+def run_monitoring_flow():  # pragma: no cover
     """Entrypoint for monitoring flow CLI."""
     import sys
 
@@ -334,7 +334,7 @@ def run_monitoring_flow():
         sys.exit(0)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     # For testing
     import sys
 

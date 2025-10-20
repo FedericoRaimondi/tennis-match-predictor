@@ -14,12 +14,12 @@ name: Training Pipeline
 #         type: boolean
 
 on:
-  workflow_dispatch:  # Manual trigger only for now
+  workflow_dispatch: # Manual trigger only for now
     inputs:
       tune_hyperparameters:
-        description: 'Perform hyperparameter tuning'
+        description: "Perform hyperparameter tuning"
         required: false
-        default: 'false'
+        default: false
         type: boolean
 
 jobs:
@@ -35,7 +35,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: "3.13"
 
       - name: Install uv
         run: |
@@ -65,7 +65,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: "3.13"
 
       - name: Install uv
         run: |
@@ -102,7 +102,7 @@ jobs:
           release_name: Model Training Run ${{ github.run_number }}
           body: |
             Automated model training completed successfully.
-            
+
             Training metrics are available in MLflow.
           draft: false
           prerelease: false

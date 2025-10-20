@@ -1,18 +1,14 @@
 name: Deploy Documentation
 
-# This workflow is PAUSED - uncomment 'on' section to enable
-# on:
-#   push:
-#     branches:
-#       - main
-#     paths:
-#       - 'docs/**'
-#       - 'mkdocs.yml'
-#       - 'src/match_predictor/**'
-#   workflow_dispatch:
-
 on:
-  workflow_dispatch:  # Manual trigger only for now
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "src/match_predictor/**"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -27,7 +23,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -35,7 +31,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: "3.13"
 
       - name: Install uv
         run: |
@@ -66,7 +62,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     needs: build
-    
+
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
@@ -79,7 +75,7 @@ jobs:
           script: |
             const commit = context.sha.substring(0, 7);
             const url = '${{ steps.deployment.outputs.page_url }}';
-            
+
             github.rest.repos.createCommitComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
