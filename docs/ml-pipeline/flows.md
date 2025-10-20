@@ -13,28 +13,28 @@ The project includes two main flows:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                   Training Flow                          │
+│                   Training Flow                         │
 ├─────────────────────────────────────────────────────────┤
 │  1. Load Data (load_data_task)                          │
-│     ↓                                                    │
+│     ↓                                                   │
 │  2. Save Data (save_data_task)                          │
-│     ↓                                                    │
+│     ↓                                                   │
 │  3. Prepare ML Data (prepare_ml_data_task)              │
-│     ↓                                                    │
+│     ↓                                                   │
 │  4. Train Model (train_model_task)                      │
-│     ↓                                                    │
+│     ↓                                                   │
 │  5. Evaluate & Promote (evaluate_and_promote_task)      │
 └─────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────┐
-│                  Monitoring Flow                         │
+│                  Monitoring Flow                        │
 ├─────────────────────────────────────────────────────────┤
 │  1. Check New Data (check_new_data_task)                │
-│     ↓                                                    │
+│     ↓                                                   │
 │  2. Detect Drift (detect_drift_task)                    │
-│     ↓                                                    │
+│     ↓                                                   │
 │  3. Evaluate Model (evaluate_model_task)                │
-│     ↓                                                    │
+│     ↓                                                   │
 │  4. Trigger Training (if needed)                        │
 └─────────────────────────────────────────────────────────┘
 ```
