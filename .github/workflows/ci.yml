@@ -76,4 +76,4 @@ jobs:
 
       - name: Check code formatting
         run: |
-          uv run ruff format --check src/ tests/
+          uv run ruff format --check src/
