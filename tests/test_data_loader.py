@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from match_predictor.config import DataConfig
 from match_predictor.data.data_loader import DataLoader
 
 
@@ -64,14 +65,18 @@ def sample_matches_df():
 
 @pytest.fixture
 def data_loader(monkeypatch):
-    dl = DataLoader("dummy/repo")
+    data_config = DataConfig()
+    data_config.source.github_repo = "dummy/repo"
+    dl = DataLoader(data_config)
     monkeypatch.setattr(dl, "list_files", lambda: ["atp_matches_2021.csv"])
     monkeypatch.setattr("match_predictor.utils.gh_utils.read_csv_from_github", lambda repo, file: pd.DataFrame())
     return dl
 
 
 def test_basic_matches_cleaning(sample_matches_df):
-    dl = DataLoader("dummy/repo")
+    data_config = DataConfig()
+    data_config.source.github_repo = "dummy/repo"
+    dl = DataLoader(data_config)
     cleaned = dl._basic_matches_cleaning(sample_matches_df.copy())
     assert "tourney_year" in cleaned.columns
     assert cleaned["tourney_year"].min() >= 1991
@@ -80,34 +85,39 @@ def test_basic_matches_cleaning(sample_matches_df):
 
 
 def test_get_player_stats_latest(sample_matches_df):
-    dl = DataLoader("dummy/repo")
+    data_config = DataConfig()
+    data_config.source.github_repo = "dummy/repo"
+    dl = DataLoader(data_config)
     cleaned = dl._basic_matches_cleaning(sample_matches_df.copy())
     stats = dl.get_player_stats(df=cleaned, latest=True)
     assert isinstance(stats, pd.DataFrame)
-    assert "player_id" in stats.columns
-    assert stats.groupby("player_id").size().max() == 1
+    assert "p_id" in stats.columns
+    assert stats.groupby("p_id").size().max() == 1
 
 
 def test_get_player_stats_all(sample_matches_df):
-    dl = DataLoader("dummy/repo")
+    data_config = DataConfig()
+    data_config.source.github_repo = "dummy/repo"
+    dl = DataLoader(data_config)
     cleaned = dl._basic_matches_cleaning(sample_matches_df.copy())
     stats = dl.get_player_stats(df=cleaned, latest=False)
     assert isinstance(stats, pd.DataFrame)
-    assert "player_id" in stats.columns
-    assert stats["player_id"].nunique() == 2
+    assert "p_id" in stats.columns
+    assert stats["p_id"].nunique() == 2
 
 
 def test_get_tournament_info(sample_matches_df):
-    dl = DataLoader("dummy/repo")
+    data_config = DataConfig(); data_config.source.github_repo = "dummy/repo"; dl = DataLoader(data_config)
     cleaned = dl._basic_matches_cleaning(sample_matches_df.copy())
     info = dl.get_tournament_info(df=cleaned)
     assert isinstance(info, pd.DataFrame)
-    assert "tourney_id" in info.columns
+    assert "tourney_name" in info.columns
+    assert "surface" in info.columns
     assert info.shape[0] == 1
 
 
 def test_get_ml_data(sample_matches_df, monkeypatch):
-    dl = DataLoader("dummy/repo")
+    data_config = DataConfig(); data_config.source.github_repo = "dummy/repo"; dl = DataLoader(data_config)
     cleaned = dl._basic_matches_cleaning(sample_matches_df.copy())
     monkeypatch.setattr(np.random, "randint", lambda a, b, size: np.zeros(size, dtype=int))
     ml_data = dl.get_ml_data(df=cleaned)
@@ -119,7 +129,7 @@ def test_get_ml_data(sample_matches_df, monkeypatch):
 
 
 def test_basic_matches_cleaning_missing_column():
-    dl = DataLoader("dummy/repo")
+    data_config = DataConfig(); data_config.source.github_repo = "dummy/repo"; dl = DataLoader(data_config)
     df = pd.DataFrame({"tourney_name": ["Test Open"], "tourney_level": ["A"], "tourney_date": ["20210101"]})
     # Should raise KeyError because 'tourney_year' is not created if 'tourney_date' is missing or malformed
     with pytest.raises(KeyError):
@@ -127,7 +137,7 @@ def test_basic_matches_cleaning_missing_column():
 
 
 def test_get_player_stats_missing_columns():
-    dl = DataLoader("dummy/repo")
+    data_config = DataConfig(); data_config.source.github_repo = "dummy/repo"; dl = DataLoader(data_config)
     df = pd.DataFrame({"winner_id": [1], "loser_id": [2]})
     # Should raise KeyError because required columns are missing
     with pytest.raises(KeyError):
@@ -135,7 +145,7 @@ def test_get_player_stats_missing_columns():
 
 
 def test_get_tournament_info_missing_columns():
-    dl = DataLoader("dummy/repo")
+    data_config = DataConfig(); data_config.source.github_repo = "dummy/repo"; dl = DataLoader(data_config)
     df = pd.DataFrame({"tourney_id": [1]})
     # Should raise KeyError because required columns are missing
     with pytest.raises(KeyError):
@@ -143,7 +153,7 @@ def test_get_tournament_info_missing_columns():
 
 
 def test_get_ml_data_missing_columns():
-    dl = DataLoader("dummy/repo")
+    data_config = DataConfig(); data_config.source.github_repo = "dummy/repo"; dl = DataLoader(data_config)
     df = pd.DataFrame({"winner_id": [1], "loser_id": [2]})
     # Should raise KeyError because required columns are missing
     with pytest.raises(KeyError):
@@ -151,7 +161,7 @@ def test_get_ml_data_missing_columns():
 
 
 def test_list_files_success(monkeypatch):
-    dl = DataLoader("dummy/repo")
+    data_config = DataConfig(); data_config.source.github_repo = "dummy/repo"; dl = DataLoader(data_config)
     monkeypatch.setattr(
         "match_predictor.data.data_loader.list_github_files", lambda repo: ["file1.csv", "file2.csv"]
     )
@@ -160,14 +170,14 @@ def test_list_files_success(monkeypatch):
 
 
 def test_list_files_failure(monkeypatch):
-    dl = DataLoader("dummy/repo")
+    data_config = DataConfig(); data_config.source.github_repo = "dummy/repo"; dl = DataLoader(data_config)
     monkeypatch.setattr("match_predictor.data.data_loader.list_github_files", lambda repo: None)
     assert dl.list_files() is None
 
 
 def test_load_matches_success(monkeypatch):
     # Simulate two CSV files, each with a small DataFrame
-    dl = DataLoader("dummy/repo")
+    data_config = DataConfig(); data_config.source.github_repo = "dummy/repo"; dl = DataLoader(data_config)
     monkeypatch.setattr(dl, "list_files", lambda: ["atp_matches_2021.csv", "atp_matches_2022.csv", "README.md"])
     df1 = pd.DataFrame(
         {
@@ -237,7 +247,7 @@ def test_load_matches_success(monkeypatch):
 
 
 def test_load_matches_no_files(monkeypatch):
-    dl = DataLoader("dummy/repo")
+    data_config = DataConfig(); data_config.source.github_repo = "dummy/repo"; dl = DataLoader(data_config)
     monkeypatch.setattr(dl, "list_files", lambda: None)
     with pytest.raises(ValueError):
         dl.load_matches()
@@ -245,7 +255,7 @@ def test_load_matches_no_files(monkeypatch):
 
 def test_save_latest_player_stats_csv(sample_matches_df, tmp_path):
     """Test saving latest player stats to CSV format."""
-    dl = DataLoader("dummy/repo")
+    data_config = DataConfig(); data_config.source.github_repo = "dummy/repo"; dl = DataLoader(data_config)
     cleaned = dl._basic_matches_cleaning(sample_matches_df.copy())
     
     output_file = tmp_path / "player_stats.csv"
@@ -257,13 +267,13 @@ def test_save_latest_player_stats_csv(sample_matches_df, tmp_path):
     # Verify the saved data
     saved_stats = pd.read_csv(result_path)
     assert isinstance(saved_stats, pd.DataFrame)
-    assert "player_id" in saved_stats.columns
+    assert "p_id" in saved_stats.columns
     assert len(saved_stats) == 2  # Two unique players in sample data
 
 
 def test_save_latest_player_stats_parquet(sample_matches_df, tmp_path):
     """Test saving latest player stats to Parquet format."""
-    dl = DataLoader("dummy/repo")
+    data_config = DataConfig(); data_config.source.github_repo = "dummy/repo"; dl = DataLoader(data_config)
     cleaned = dl._basic_matches_cleaning(sample_matches_df.copy())
     
     output_file = tmp_path / "player_stats.parquet"
@@ -275,12 +285,12 @@ def test_save_latest_player_stats_parquet(sample_matches_df, tmp_path):
     # Verify the saved data
     saved_stats = pd.read_parquet(result_path)
     assert isinstance(saved_stats, pd.DataFrame)
-    assert "player_id" in saved_stats.columns
+    assert "p_id" in saved_stats.columns
 
 
 def test_save_latest_player_stats_creates_directory(sample_matches_df, tmp_path):
     """Test that save_latest_player_stats creates output directory if it doesn't exist."""
-    dl = DataLoader("dummy/repo")
+    data_config = DataConfig(); data_config.source.github_repo = "dummy/repo"; dl = DataLoader(data_config)
     cleaned = dl._basic_matches_cleaning(sample_matches_df.copy())
     
     output_file = tmp_path / "new_dir" / "player_stats.csv"

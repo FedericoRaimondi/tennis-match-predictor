@@ -51,6 +51,7 @@ class PredictResponse(BaseModel):
     player1_win_probability: float
     player2_win_probability: float
     predicted_winner: str
+    latest_matches: list[dict[str, Any]] = []
 
 
 class MatchStats(BaseModel):
