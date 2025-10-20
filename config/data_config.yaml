@@ -4,10 +4,10 @@ source:
   github_repo: "JeffSackmann/tennis_atp"
   selected_year: 1991
   tourney_levels:
-    - "G"  # Grand Slam
-    - "F"  # Tour Finals
-    - "M"  # Masters
-    - "A"  # ATP Tour
+    - "G" # Grand Slam
+    - "F" # Tour Finals
+    - "M" # Masters
+    - "A" # ATP Tour
 
 features:
   rolling_windows:
@@ -15,25 +15,16 @@ features:
     - 5
     - 10
   stats_columns_mean:
-    - "p_ace"
-    - "p_df"
-    - "p_svpt"
-    - "p_1stIn"
-    - "p_1stWon"
-    - "p_2ndWon"
-    - "p_SvGms"
-    - "p_bpSaved"
-    - "p_bpFaced"
-    - "opponent_rank_points"
-    - "o_ace"
-    - "o_df"
-    - "o_svpt"
-    - "o_1stIn"
-    - "o_1stWon"
-    - "o_2ndWon"
-    - "o_SvGms"
-    - "o_bpSaved"
-    - "o_bpFaced"
+    - "ace"
+    - "df"
+    - "svpt"
+    - "1stIn"
+    - "1stWon"
+    - "2ndWon"
+    - "SvGms"
+    - "bpSaved"
+    - "bpFaced"
+    - "rank_points"
     - "minutes"
   stats_columns_sum:
     - "minutes"
@@ -42,5 +33,6 @@ features:
   elo_initial_rating: 1500.0
 
 inference_data_path: "data/"
-matches_results_file: "matches_results.pkl"
-tournament_info_file: "tournament_info.pkl"
+matches_results_file: "matches_results.csv"
+tournament_info_file: "tournament_info.csv"
+player_stats_file: "player_stats_latest.csv"

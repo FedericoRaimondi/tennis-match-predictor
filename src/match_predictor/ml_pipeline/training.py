@@ -200,7 +200,7 @@ class ModelTrainer:
         self.feature_names = saved_data["feature_names"]
         self.training_metrics = saved_data.get("metrics", {})
 
-        self.logger.info(f"Model loaded from {path}")
+        self.logger.info(f"Model loaded from {path}. Trained with {len(self.feature_names)} features.")
 
     def should_promote_to_champion(self, champion_accuracy: float | None = None) -> bool:
         """Determine if the current model should be promoted to champion.

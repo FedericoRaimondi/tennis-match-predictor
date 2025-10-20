@@ -12,8 +12,8 @@ def add_rolling_stats(
     window: int = 5,
     min_periods: int = 1,
     shift_periods: int = 1,
-    group_col: str = "player_id",
-    sort_cols: List[str] = ["player_id", "tourney_date", "tourney_id", "match_num"],  # noqa: B006
+    group_col: str = "p_id",
+    sort_cols: List[str] = ["p_id", "tourney_date", "tourney_id", "match_num"],  # noqa: B006
 ) -> pd.DataFrame:
     """Add rolling statistics to a DataFrame for each player.
 
@@ -79,17 +79,17 @@ def add_rolling_stats(
 
 def calculate_elo(
     df: pd.DataFrame,
-    player_col: str = "player_id",
-    opponent_col: str = "opponent_id",
+    player_col: str = "p_id",
+    opponent_col: str = "o_id",
     result_col: str = "results",
     k: float = 32,
     base_elo: float = 1500,
-    sort_cols: list = ["player_id", "tourney_date", "tourney_id", "match_num"],  # noqa: B006
+    sort_cols: list = ["p_id", "tourney_date", "tourney_id", "match_num"],  # noqa: B006
 ) -> pd.DataFrame:
     """Calculate Elo ratings for players based on match outcomes.
 
     Args:
-        df (pd.DataFrame): DataFrame with at least player_id, opponent_id, results, and match order columns.
+        df (pd.DataFrame): DataFrame with at least p_id, o_id, results, and match order columns.
         player_col (str): Column name for player ID.
         opponent_col (str): Column name for opponent ID.
         result_col (str): Column name for match result (1=win, 0=loss).
@@ -109,7 +109,7 @@ def calculate_elo(
     elo_before = []
     elo_after = []
 
-    for idx, row in df.iterrows():
+    for _idx, row in df.iterrows():
         p1 = row[player_col]
         p2 = row[opponent_col]
         result = row[result_col]

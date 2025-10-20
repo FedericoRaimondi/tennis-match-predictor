@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
+from match_predictor.config import DataConfig
 from match_predictor.utils.gh_utils import list_github_files, read_csv_from_github
 from match_predictor.utils.stats_helpers import add_rolling_stats, calculate_elo
 
@@ -14,13 +15,14 @@ from match_predictor.utils.stats_helpers import add_rolling_stats, calculate_elo
 class DataLoader:
     """Class for loading tennis match data from a GitHub repository."""
 
-    def __init__(self, repo_name: str):
+    def __init__(self, data_config: DataConfig):
         """Initializes the DataLoader with the specified GitHub repository name.
 
         Parameters:
             repo_name (str): The name of the GitHub repository (e.g., "owner/repo").
         """
-        self.repo_name = repo_name
+        self.data_config = data_config
+        self.repo_name = data_config.source.github_repo
         self.logger = logger
 
     def list_files(self) -> list | None:
@@ -46,10 +48,10 @@ class DataLoader:
         # Create tournay_year column
         df["tourney_year"] = df["tourney_date"].dt.year
         # Filter for matches after selected year
-        selected_year = 1991
+        selected_year = self.data_config.source.selected_year
         df = df[df["tourney_year"] >= selected_year].reset_index(drop=True)
         # Filter for tourney levels in ['G', 'F', 'M', 'A'], for more info see the documentation
-        df = df[df["tourney_level"].isin(["G", "F", "M", "A"])].reset_index(drop=True)
+        df = df[df["tourney_level"].isin(self.data_config.source.tourney_levels)].reset_index(drop=True)
         # Exclude Laver Cup matches
         df = df[~df["tourney_name"].str.contains("Laver Cup")].reset_index(drop=True)
 
@@ -163,11 +165,11 @@ class DataLoader:
 
         # Rename columns to remove "winner_" prefix and "w_" prefix only if they start the column name
         player_stats_hist_df.columns = [
-            col.replace("winner_", "player_", 1)
+            col.replace("winner_", "p_", 1)
             if col.startswith("winner_")
             else col.replace("w_", "p_", 1)
             if col.startswith("w_")
-            else col.replace("loser_", "opponent_", 1)
+            else col.replace("loser_", "o_", 1)
             if col.startswith("loser_")
             else col.replace("l_", "o_", 1)
             if col.startswith("l_")
@@ -176,11 +178,11 @@ class DataLoader:
         ]
 
         player_stats_hist_df_l.columns = [
-            col.replace("loser_", "player_", 1)
+            col.replace("loser_", "p_", 1)
             if col.startswith("loser_")
             else col.replace("l_", "p_", 1)
             if col.startswith("l_")
-            else col.replace("winner_", "opponent_", 1)
+            else col.replace("winner_", "o_", 1)
             if col.startswith("winner_")
             else col.replace("w_", "o_", 1)
             if col.startswith("w_")
@@ -193,39 +195,46 @@ class DataLoader:
 
         # First ensure the DataFrame is properly sorted by the specified order
         player_stats_hist_df = player_stats_hist_df.sort_values(
-            by=["player_id", "tourney_date", "tourney_id", "match_num"]
+            by=["p_id", "tourney_date", "tourney_id", "match_num"]
         ).reset_index(drop=True)
 
-        cols_to_mean = [
-            "p_ace",
-            "p_df",
-            "p_svpt",
-            "p_1stIn",
-            "p_1stWon",
-            "p_2ndWon",
-            "p_SvGms",
-            "p_bpSaved",
-            "p_bpFaced",  # player stats
-            "opponent_rank_points",  # opponent info
-            "o_ace",
-            "o_df",
-            "o_svpt",
-            "o_1stIn",
-            "o_1stWon",
-            "o_2ndWon",
-            "o_SvGms",
-            "o_bpSaved",
-            "o_bpFaced",  # opponent stats
-            "minutes",  # match info
-        ]  # from config ?
+        cols_to_mean = self.data_config.features.stats_columns_mean
+        cols_to_sum = self.data_config.features.stats_columns_sum
 
-        cols_to_sum = [
-            "minutes",  # match info
-            "results",  # match wins
-        ]  # from config ?
+        # add p_ and o_ prefixes to cols_to_mean, except for minutes
+        cols_to_mean = [col if col == "minutes" else f"p_{col}" for col in cols_to_mean] + [
+            col if col == "minutes" else f"o_{col}" for col in cols_to_mean
+        ]
+        # cols_to_mean = [
+        #     "p_ace",
+        #     "p_df",
+        #     "p_svpt",
+        #     "p_1stIn",
+        #     "p_1stWon",
+        #     "p_2ndWon",
+        #     "p_SvGms",
+        #     "p_bpSaved",
+        #     "p_bpFaced",  # player stats
+        #     "opponent_rank_points",  # opponent info
+        #     "o_ace",
+        #     "o_df",
+        #     "o_svpt",
+        #     "o_1stIn",
+        #     "o_1stWon",
+        #     "o_2ndWon",
+        #     "o_SvGms",
+        #     "o_bpSaved",
+        #     "o_bpFaced",  # opponent stats
+        #     "minutes",  # match info
+        # ]
+
+        # cols_to_sum = [
+        #     "minutes",  # match info
+        #     "results",  # match wins
+        # ]
 
         self.logger.info("Calculating rolling statistics for players...")
-        for i in [3, 5, 10]:  # from config ?
+        for i in self.data_config.features.rolling_windows:
             # Add rolling statistics for the last i matches
             player_stats_hist_df = add_rolling_stats(
                 player_stats_hist_df, stats_columns=cols_to_mean, agg_type="mean", window=i
@@ -242,13 +251,29 @@ class DataLoader:
         # drop original cols_to_mean and cols_to_sum to avoid data leakage
         player_stats_hist_df = player_stats_hist_df.drop(columns=cols_to_mean + cols_to_sum)
 
+        # drop opponent info to avoid double reporting
+        to_remove = ["id", "seed", "entry", "name", "hand", "ht", "ioc", "age", "rank"]
+        to_remove = [f"o_{col}" for col in to_remove]
+        player_stats_hist_df = player_stats_hist_df.drop(columns=to_remove)
+
         # If latest is True, return only the latest statistics for each player
         if latest:
             self.logger.info("Extracting latest statistics for each player...")
             player_stats_hist_df = player_stats_hist_df.sort_values(
-                by=["player_id", "tourney_date", "tourney_id", "match_num"]
+                by=["p_id", "tourney_date", "tourney_id", "match_num"]
             ).reset_index(drop=True)
-            player_stats_hist_df = player_stats_hist_df.groupby("player_id").tail(1).reset_index(drop=True)
+            player_stats_hist_df = player_stats_hist_df.groupby("p_id").tail(1).reset_index(drop=True)
+            to_remove = [
+                "tourney_id",
+                "tourney_name",
+                "surface",
+                "draw_size",
+                "tourney_level",
+                "tourney_date",
+                "tourney_year",
+                "match_num",
+            ]
+            player_stats_hist_df = player_stats_hist_df.drop(columns=to_remove)
 
         self.logger.info("Player statistics calculation complete.")
         return player_stats_hist_df
@@ -275,7 +300,14 @@ class DataLoader:
             "tourney_date",
             "tourney_year",
         ]
-        tournament_info_df = atp_matches_df[tournament_info_cols].drop_duplicates().reset_index(drop=True)
+        tournament_info_df = atp_matches_df[tournament_info_cols]
+        tournament_info_df["tourney_name"] = tournament_info_df["tourney_name"].str.strip().upper()
+        # sort by tourney_date descending and drop duplicates to keep only the latest info
+        tournament_info_df = tournament_info_df.sort_values(by="tourney_date", ascending=False)
+        # drop tourney id, date, year columns
+        tournament_info_df = tournament_info_df.drop(columns=["tourney_id", "tourney_date", "tourney_year"])
+        # keep only the first occurrence of each tournament name. Basically latest info for each tournament.
+        tournament_info_df = tournament_info_df.drop_duplicates(subset=["tourney_name"]).reset_index(drop=True)
         self.logger.info(f"Loaded info for {tournament_info_df.shape[0]} tournaments.")
 
         return tournament_info_df
@@ -296,18 +328,16 @@ class DataLoader:
 
         self.logger.info("Preparing dataset for machine learning tasks...")
         # Create a new column with a list of [winner_id, loser_id] for each row
-        atp_matches_df["player_ids"] = atp_matches_df.apply(lambda row: [row["winner_id"], row["loser_id"]], axis=1)
+        atp_matches_df["p_ids"] = atp_matches_df.apply(lambda row: [row["winner_id"], row["loser_id"]], axis=1)
 
         # Randomly select one as player_1 and the other as player_2
         rand_choice = np.random.randint(0, 2, size=len(atp_matches_df))
-        atp_matches_df["player_1"] = atp_matches_df.apply(lambda row: row["player_ids"][rand_choice[row.name]], axis=1)
-        atp_matches_df["player_2"] = atp_matches_df.apply(
-            lambda row: row["player_ids"][1 - rand_choice[row.name]], axis=1
-        )
+        atp_matches_df["player_1"] = atp_matches_df.apply(lambda row: row["p_ids"][rand_choice[row.name]], axis=1)
+        atp_matches_df["player_2"] = atp_matches_df.apply(lambda row: row["p_ids"][1 - rand_choice[row.name]], axis=1)
 
-        # Create a column "winner": 0 if player_1 is the first element of player_ids, else 1
+        # Create a column "winner": 0 if player_1 is the first element of p_ids, else 1
         atp_matches_df["winner"] = atp_matches_df.apply(
-            lambda row: 0 if row["player_1"] == row["player_ids"][0] else 1, axis=1
+            lambda row: 0 if row["player_1"] == row["p_ids"][0] else 1, axis=1
         )
         ml_dataset = atp_matches_df[
             ["tourney_id", "tourney_date", "match_num", "player_1", "player_2", "winner"]
@@ -318,7 +348,7 @@ class DataLoader:
             self.get_player_stats(df=atp_matches_df, latest=False),
             how="left",
             left_on=["player_1", "tourney_id", "tourney_date", "match_num"],
-            right_on=["player_id", "tourney_id", "tourney_date", "match_num"],
+            right_on=["p_id", "tourney_id", "tourney_date", "match_num"],
             suffixes=("", "_p1"),
         )
 
@@ -327,25 +357,40 @@ class DataLoader:
             self.get_player_stats(df=atp_matches_df, latest=False),
             how="left",
             left_on=["player_2", "tourney_id", "tourney_date", "match_num"],
-            right_on=["player_id", "tourney_id", "tourney_date", "match_num"],
+            right_on=["p_id", "tourney_id", "tourney_date", "match_num"],
             suffixes=("", "_p2"),
         )
+        to_remove = [
+            "tourney_id",
+            "tourney_name",
+            "surface",
+            "draw_size",
+            "tourney_level",
+            "tourney_date",
+            "tourney_year",
+            "match_num",
+        ]
+        # add _p1 and _p2 prefixes to to_remove cols
+        to_remove = [f"{col}_p1" for col in to_remove] + [f"{col}_p2" for col in to_remove]
+        ml_dataset = ml_dataset.drop(columns=to_remove)
 
-        # add tournament info
-        ml_dataset = ml_dataset.merge(
-            self.get_tournament_info(df=atp_matches_df),
-            how="left",
-            left_on="tourney_id",
-            right_on="tourney_id",
-            suffixes=("", "_t"),
-        )
+        # # add tournament info
+        # ml_dataset = ml_dataset.merge(
+        #     self.get_tournament_info(df=atp_matches_df),
+        #     how="left",
+        #     left_on="tourney_id",
+        #     right_on="tourney_id",
+        #     suffixes=("", "_t"),
+        # )
 
         self.logger.info("Dataset preparation complete.")
         self.logger.info(f"Final dataset shape: {ml_dataset.shape}")
 
         return ml_dataset
 
-    def save_latest_player_stats(self, df: pd.DataFrame = None, output_path: str = "data/player_stats_latest.csv") -> Path:
+    def save_latest_player_stats(
+        self, df: pd.DataFrame = None, output_path: str = "data/player_stats_latest.csv"
+    ) -> Path:
         """Save the latest player statistics to a file for quick access during inference.
 
         This method extracts and saves the most recent performance statistics for each player,

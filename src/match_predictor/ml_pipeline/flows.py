@@ -25,24 +25,25 @@ def load_data_task(data_config: DataConfig) -> pd.DataFrame:
         DataFrame with match data
     """
     logger.info("Loading match data...")
-    loader = DataLoader(data_config.source.github_repo)
+    loader = DataLoader(data_config)
     matches = loader.load_matches()
     logger.info(f"Loaded {len(matches)} matches")
     return matches
 
 
 @task(name="prepare_ml_data")
-def prepare_ml_data_task(matches: pd.DataFrame) -> pd.DataFrame:
+def prepare_ml_data_task(data_config: DataConfig, matches: pd.DataFrame) -> pd.DataFrame:
     """Prepare ML dataset from matches.
 
     Args:
+        data_config: Data configuration
         matches: Match data
 
     Returns:
         ML-ready dataset
     """
     logger.info("Preparing ML dataset...")
-    loader = DataLoader("JeffSackmann/tennis_atp")
+    loader = DataLoader(data_config)
     ml_data = loader.get_ml_data(df=matches)
     logger.info(f"Prepared ML dataset with {len(ml_data)} samples")
     return ml_data
@@ -128,20 +129,20 @@ def save_data_task(matches: pd.DataFrame, data_config: DataConfig):
 
     # Save matches
     matches_file = data_path / data_config.matches_results_file
-    matches.to_pickle(matches_file)
+    matches.to_csv(matches_file, index=False)
     logger.info(f"Saved matches to {matches_file}")
 
     # Initialize DataLoader for additional data saving
-    loader = DataLoader("JeffSackmann/tennis_atp")
+    loader = DataLoader(data_config)
 
     # Save tournament info
     tournament_info = loader.get_tournament_info(df=matches)
-    tournament_file = data_path / "tournament_info.pkl"
-    tournament_info.to_pickle(tournament_file)
+    tournament_file = data_path / data_config.tournament_info_file
+    tournament_info.to_csv(tournament_file, index=False)
     logger.info(f"Saved tournament info to {tournament_file}")
 
     # Save latest player stats for inference
-    player_stats_file = data_path / "player_stats_latest.csv"
+    player_stats_file = data_path / data_config.player_stats_file
     loader.save_latest_player_stats(df=matches, output_path=str(player_stats_file))
     logger.info(f"Saved latest player stats to {player_stats_file}")
 
@@ -168,7 +169,7 @@ def training_flow(
     # Execute pipeline
     matches = load_data_task(data_config)
     save_data_task(matches, data_config)
-    ml_data = prepare_ml_data_task(matches)
+    ml_data = prepare_ml_data_task(data_config, matches)
     metrics = train_model_task(ml_data, model_config, tune_hyperparameters)
     promoted = evaluate_and_promote_task(metrics, model_config)
 
@@ -188,7 +189,7 @@ def check_new_data_task(data_config: DataConfig) -> bool:
     """
     logger.info("Checking for new data...")
 
-    loader = DataLoader(data_config.source.github_repo)
+    loader = DataLoader(data_config)
     new_matches = loader.load_matches()
 
     # Check against existing data
@@ -222,7 +223,7 @@ def detect_drift_task(data_config: DataConfig) -> dict:
     """
     logger.info("Detecting data drift...")
 
-    loader = DataLoader(data_config.source.github_repo)
+    loader = DataLoader(data_config)
 
     # Load reference and current data
     data_path = Path(data_config.inference_data_path)
@@ -284,7 +285,7 @@ def monitoring_flow(
 
     # Load configurations
     data_config = DataConfig.from_yaml(data_config_path)
-    model_config = ModelConfig.from_yaml(model_config_path)
+    _model_config = ModelConfig.from_yaml(model_config_path)
 
     # Check for new data
     has_new_data = check_new_data_task(data_config)

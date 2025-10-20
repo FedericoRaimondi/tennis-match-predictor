@@ -32,10 +32,10 @@ class FeatureEngineer:
         # Create a copy to avoid modifying the original
         df_engineered = df.copy()
 
-        # Add derived features
-        df_engineered = self._add_match_statistics(df_engineered)
-        df_engineered = self._add_player_rankings(df_engineered)
-        df_engineered = self._add_temporal_features(df_engineered)
+        # # Add derived features
+        # df_engineered = self._add_match_statistics(df_engineered)
+        # df_engineered = self._add_player_rankings(df_engineered)
+        # df_engineered = self._add_temporal_features(df_engineered)
 
         self.logger.info(f"Feature engineering complete. Final shape: {df_engineered.shape}")
         return df_engineered
@@ -92,22 +92,23 @@ class FeatureEngineer:
             "winner",
             "player_1",
             "player_2",
-            "player_id",
-            "opponent_id",
+            "p_id",
+            "o_id",
             "tourney_id",
             "tourney_name",
             "tourney_date",
+            "tourney_year",
             "match_num",
-            "player_name",
-            "opponent_name",
+            "p_name",
+            "o_name",
         ]
 
         # exclude datetime64[ns]
         date_columns = df.select_dtypes(include="datetime64[ns]").columns.tolist()
 
         # Also exclude columns with suffixes like _p1, _p2, _t for metadata columns
-        exclude_patterns = ["tourney_id", "tourney_date", "match_num", "player_id", "opponent_id"]
-        
+        exclude_patterns = ["tourney_id", "tourney_date", "match_num", "p_id", "o_id"]
+
         feature_columns = []
         for col in df.columns:
             # Skip if column is in exclude list
@@ -128,9 +129,9 @@ class FeatureEngineer:
         # Handle missing values
         # X = X.fillna(X.median())
 
-        # Convert categorical columns to numeric if needed
-        for col in X.select_dtypes(include=["object", "category"]).columns:
-            X[col] = pd.Categorical(X[col]).codes
+        # # Convert categorical columns to numeric if needed
+        # for col in X.select_dtypes(include=["object", "category"]).columns:
+        #     X[col] = pd.Categorical(X[col]).codes
 
         self.logger.info(f"Prepared {len(feature_columns)} features for training")
         return X, y
@@ -148,22 +149,22 @@ class FeatureEngineer:
             "winner",
             "player_1",
             "player_2",
-            "player_id",
-            "opponent_id",
+            "p_id",
+            "o_id",
             "tourney_id",
             "tourney_name",
             "tourney_date",
             "match_num",
-            "player_name",
-            "opponent_name",
+            "p_name",
+            "o_name",
         ]
 
         # exclude datetime64[ns]
         date_columns = df.select_dtypes(include="datetime64[ns]").columns.tolist()
 
         # Also exclude columns with suffixes like _p1, _p2, _t for metadata columns
-        exclude_patterns = ["tourney_id", "tourney_date", "match_num", "player_id", "opponent_id"]
-        
+        exclude_patterns = ["tourney_id", "tourney_date", "match_num", "p_id", "o_id"]
+
         feature_columns = []
         for col in df.columns:
             # Skip if column is in exclude list
