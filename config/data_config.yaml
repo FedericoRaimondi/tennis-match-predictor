@@ -1,0 +1,38 @@
+# Data configuration for Tennis Match Predictor
+
+source:
+  github_repo: "JeffSackmann/tennis_atp"
+  selected_year: 1991
+  tourney_levels:
+    - "G" # Grand Slam
+    - "F" # Tour Finals
+    - "M" # Masters
+    - "A" # ATP Tour
+
+features:
+  rolling_windows:
+    - 3
+    - 5
+    - 10
+  stats_columns_mean:
+    - "ace"
+    - "df"
+    - "svpt"
+    - "1stIn"
+    - "1stWon"
+    - "2ndWon"
+    - "SvGms"
+    - "bpSaved"
+    - "bpFaced"
+    - "rank_points"
+    - "minutes"
+  stats_columns_sum:
+    - "minutes"
+    - "results"
+  elo_k_factor: 32.0
+  elo_initial_rating: 1500.0
+
+inference_data_path: "data/"
+matches_results_file: "matches_results.csv"
+tournament_info_file: "tournament_info.csv"
+player_stats_file: "player_stats_latest.csv"

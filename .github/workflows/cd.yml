@@ -1,0 +1,104 @@
+name: CD - Deployment
+
+# This workflow is PAUSED - uncomment 'on' section to enable
+# on:
+#   push:
+#     branches:
+#       - main
+#     tags:
+#       - 'v*'
+
+on:
+  workflow_dispatch:  # Manual trigger only for now
+
+jobs:
+  deploy-api:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Build and push Docker image
+        run: |
+          # Build Docker image for API
+          docker build --target api -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/tennis-predictor-api:${{ github.sha }} .
+          
+          # Configure Docker to use gcloud as credential helper
+          gcloud auth configure-docker
+          
+          # Push image to Google Container Registry
+          docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/tennis-predictor-api:${{ github.sha }}
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy tennis-predictor-api \
+            --image gcr.io/${{ secrets.GCP_PROJECT_ID }}/tennis-predictor-api:${{ github.sha }} \
+            --platform managed \
+            --region us-central1 \
+            --allow-unauthenticated \
+            --memory 2Gi \
+            --cpu 2
+
+  deploy-streamlit:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Streamlit Community Cloud
+        run: |
+          echo "Streamlit deployment is configured via Streamlit Community Cloud dashboard"
+          echo "App URL: https://share.streamlit.io/[your-app-path]"
+          # Note: Actual deployment happens through Streamlit Cloud dashboard
+          # This is a placeholder for the workflow structure
+
+  push-docker-image:
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract tag name
+        id: tag
+        run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          target: api
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/tennis-predictor-api:${{ steps.tag.outputs.TAG }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/tennis-predictor-api:latest
+
+      - name: Build and push Streamlit image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          target: streamlit
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/tennis-predictor-streamlit:${{ steps.tag.outputs.TAG }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/tennis-predictor-streamlit:latest

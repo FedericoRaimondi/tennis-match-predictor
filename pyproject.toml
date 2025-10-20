@@ -1,11 +1,15 @@
 [project]
-name = "tennis-match-predictor"
+name = "match-predictor"
 version = "0.1.0"
 description = "Tennis match predictor app"
 readme = "README.md"
-requires-python = ">=3.13"
+authors = [
+    {name = "Federico Raimondi Cominesi", email = "federico.raimondi@gsom.polimi.it"}
+]
+requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.116.1",
+    "uvicorn[standard]>=0.35.0",
     "matplotlib>=3.10.3",
     "mlflow==3.1.4",
     "numpy==2.2.5",
@@ -13,9 +17,68 @@ dependencies = [
     "requests==2.32.3",
     "scikit-learn==1.6.1",
     "xgboost==3.0.2",
+    "loguru==0.7.0",
+    "streamlit>=1.40.0",
+    "pydantic>=2.11.0",
+    "pydantic-settings>=2.7.0",
+    "plotly>=5.24.0",
+    "evidently>=0.4.0",
+    "optuna>=4.2.0",
+    "pyyaml>=6.0.0",
+    "prefect>=3.0.0",
 ]
 
 [dependency-groups]
 dev = [
     "ipykernel==6.29.5",
+    "pytest==8.4.1",
+    "pytest-cov==6.2.1",
+    "pytest-asyncio>=0.24.0",
+    "httpx>=0.28.0",
+    "mkdocs>=1.6.0",
+    "mkdocs-material>=9.5.0",
+    "mkdocstrings[python]>=0.27.0",
+    "ruff>=0.9.0",
 ]
+
+[project.scripts]
+main = 'match_predictor.main:main'
+train-model = 'match_predictor.ml_pipeline.flows:run_training_flow'
+monitor-model = 'match_predictor.ml_pipeline.flows:run_monitoring_flow'
+
+[build-system]
+requires = ["uv_build>=0.7.19,<0.8.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+addopts = "--verbosity=2 --cov=match_predictor --cov-report html"
+pythonpath = ["src"]
+
+[tool.coverage.run]
+omit = [
+    "*/app/main.py",  # Streamlit app - UI testing not in scope
+    "*/main.py",      # Entry point - minimal logic
+]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    "F",  # pyflakes rules
+    "E",  # pycodestyle error rules
+    "W",  # pycodestyle warning rules
+    "B",  # flake8-bugbear rules
+    "I",  # isort rules
+    "D",  # pydocstyle rules
+]
+
+ignore = [
+    "E501",  # line-too-long
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"  # Use Google style docstrings
+
+[tool.ruff.format]
+indent-style = "space"
