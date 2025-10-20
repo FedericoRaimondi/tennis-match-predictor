@@ -65,6 +65,7 @@ nav:
       - API Usage: user-guide/api-usage.md
       - Docker Deployment: user-guide/docker-deployment.md
   - ML Pipeline:
+      - Prefect Flows: ml-pipeline/flows.md
       - Feature Engineering: ml-pipeline/feature-engineering.md
       - Model Training: ml-pipeline/training.md
       - Hyperparameter Tuning: ml-pipeline/hyperparameter-tuning.md
