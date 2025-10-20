@@ -1,6 +1,5 @@
 """Streamlit application for tennis match prediction."""
 
-import pickle
 from pathlib import Path
 from typing import Tuple
 
@@ -21,21 +20,14 @@ DATA_PATH = Path("data")
 def load_player_names() -> Tuple[list[str], pd.DataFrame]:
     """Load available player names and ids from data."""
     try:
-        matches_file = DATA_PATH / "matches_results.csv"
-        if not matches_file.exists():
+        player_latest = DATA_PATH / "player_stats_latest.csv"
+        if not player_latest.exists():
             return []
 
-        matches_df = pd.read_csv(matches_file)
+        player_latest_df = pd.read_csv(player_latest)
 
-        # Get unique player names and ids
-        winner_names = matches_df[["winner_name", "winner_id"]].rename(
-            columns={"winner_name": "player_name", "winner_id": "player_id"}
-        )
-        loser_names = matches_df[["loser_name", "loser_id"]].rename(
-            columns={"loser_name": "player_name", "loser_id": "player_id"}
-        )
-        all_players = pd.concat([winner_names, loser_names]).drop_duplicates().reset_index(drop=True)
-        players = sorted(all_players["player_name"].unique())
+        all_players = player_latest_df[["p_id", "p_name"]].drop_duplicates().reset_index(drop=True)
+        players = sorted(all_players["p_name"].unique())
 
         return players, all_players
     except Exception as e:
@@ -51,7 +43,7 @@ def load_tournament_names() -> list[str]:
             return []
 
         tournament_df = pd.read_csv(tournament_file)
-        tournament_df["tourney_name"] = tournament_df["tourney_name"].str.strip().upper()
+        tournament_df["tourney_name"] = tournament_df["tourney_name"].str.strip().str.upper()
 
         tournaments = sorted(tournament_df["tourney_name"].unique())
         return tournaments
@@ -60,7 +52,7 @@ def load_tournament_names() -> list[str]:
         return []
 
 
-def predict_match(player1: int, player2: int, tournament: str) -> dict | None:
+def predict_match(player1: str, player2: str, tournament: str) -> dict | None:
     """Call the API to predict match outcome."""
     try:
         response = requests.post(
@@ -104,21 +96,36 @@ def create_probability_chart(player1: str, player2: str, prob1: float, prob2: fl
     fig = go.Figure(
         data=[
             go.Bar(
-                x=[player1, player2],
-                y=[prob1, prob2],
-                text=[f"{prob1:.1%}", f"{prob2:.1%}"],
+                name=player1,
+                y=["Win Probability"],
+                x=[prob1],
+                orientation="h",
+                text=[f"{prob1:.1%}"],
                 textposition="auto",
-                marker=dict(color=[prob1, prob2], colorscale="RdYlGn", cmin=0, cmax=1),
-            )
+                textfont=dict(size=18),
+                marker=dict(color="green"),
+            ),
+            go.Bar(
+                name=player2,
+                y=["Win Probability"],
+                x=[prob2],
+                orientation="h",
+                text=[f"{prob2:.1%}"],
+                textposition="auto",
+                textfont=dict(size=18),
+                marker=dict(color="red"),
+            ),
         ]
     )
 
     fig.update_layout(
         title="Win Probability",
-        yaxis_title="Probability",
-        yaxis=dict(tickformat=".0%", range=[0, 1]),
-        showlegend=False,
-        height=400,
+        xaxis_title="Probability",
+        xaxis=dict(tickformat=".0%", range=[0, 1]),
+        barmode="stack",
+        showlegend=True,
+        legend=dict(orientation="v", yanchor="bottom", xanchor="right", font=dict(size=14)),
+        height=300,
     )
 
     return fig
@@ -154,12 +161,8 @@ def display_match_stats(matches: list[dict]) -> None:
 def create_head_to_head_chart(player1: str, player2: str) -> go.Figure | None:
     """Create head-to-head record visualization."""
     try:
-        matches_file = DATA_PATH / "matches_results.pkl"
-        if not matches_file.exists():
-            return None
-
-        with open(matches_file, "rb") as f:
-            matches_df = pickle.load(f)
+        matches_file = DATA_PATH / "matches_results.csv"
+        matches_df = pd.read_csv(matches_file)
 
         # Filter head-to-head matches
         h2h = matches_df[
@@ -175,15 +178,57 @@ def create_head_to_head_chart(player1: str, player2: str) -> go.Figure | None:
         player2_wins = len(h2h[h2h["winner_name"] == player2])
 
         # Create pie chart
-        fig = go.Figure(data=[go.Pie(labels=[player1, player2], values=[player1_wins, player2_wins], hole=0.3)])
+        fig = go.Figure(data=[go.Pie(labels=[player1, player2], values=[player1_wins, player2_wins], hole=0.2)])
 
-        fig.update_layout(title=f"Head-to-Head Record ({player1_wins}-{player2_wins})", height=300)
+        fig.update_layout(title=f"Head-to-Head Record ({player1_wins}-{player2_wins})", height=500)
 
         return fig
 
     except Exception as e:
         logger.error(f"Error creating head-to-head chart: {e}")
         return None
+
+
+def get_feature_importance(top_n: int = 20) -> dict | None:
+    """Get feature importance from API."""
+    try:
+        response = requests.get(f"{API_URL}/feature_importance", params={"top_n": top_n}, timeout=10)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.ConnectionError:
+        st.warning("Cannot connect to API for feature importance.")
+        return None
+    except Exception as e:
+        st.warning(f"Failed to fetch feature importance: {e}")
+        return None
+
+
+def create_feature_importance_chart(feature_data: list[dict]) -> go.Figure:
+    """Create a horizontal bar chart showing feature importance."""
+    df = pd.DataFrame(feature_data)
+
+    fig = go.Figure(
+        data=[
+            go.Bar(
+                y=df["feature"],
+                x=df["importance"],
+                orientation="h",
+                marker=dict(color="steelblue"),
+                text=df["importance"].round(4),
+                textposition="auto",
+            )
+        ]
+    )
+
+    fig.update_layout(
+        title="Top Feature Importance",
+        xaxis_title="Importance Score",
+        yaxis_title="Feature",
+        height=600,
+        yaxis=dict(autorange="reversed"),
+    )
+
+    return fig
 
 
 def main():
@@ -237,13 +282,13 @@ def main():
 
         # Predict button
         predict_button = st.button("Predict Match", type="primary", width="stretch")
-        player_1_id = all_players[all_players["player_name"] == player1]["player_id"].values[0] if player1 else None
-        player_2_id = all_players[all_players["player_name"] == player2]["player_id"].values[0] if player2 else None
+        player_1_id = all_players[all_players["p_name"] == player1]["p_id"].values[0] if player1 else None
+        player_2_id = all_players[all_players["p_name"] == player2]["p_id"].values[0] if player2 else None
 
     # Main content area
     if predict_button and player1 and player2 and tournament:
         with st.spinner("Predicting match outcome..."):
-            prediction = predict_match(player_1_id, player_2_id, tournament)
+            prediction = predict_match(str(player_1_id), str(player_2_id), tournament)
 
         if prediction:
             # Display prediction results
@@ -256,7 +301,7 @@ def main():
                 fig = create_probability_chart(
                     player1, player2, prediction["player1_win_probability"], prediction["player2_win_probability"]
                 )
-                st.plotly_chart(fig, width="stretch")
+                st.plotly_chart(fig, use_container_width=True)
 
             with col2:
                 # Win probabilities as metrics
@@ -267,31 +312,40 @@ def main():
             st.subheader("Head-to-Head Record")
             h2h_fig = create_head_to_head_chart(player1, player2)
             if h2h_fig:
-                st.plotly_chart(h2h_fig, width="stretch")
+                st.plotly_chart(h2h_fig, use_container_width=True)
             else:
                 st.info(f"No previous matches found between {player1} and {player2}")
+
+            # Feature Importance
+            st.subheader("Model Feature Importance")
+            feature_importance_data = get_feature_importance(top_n=20)
+            if feature_importance_data and "features" in feature_importance_data:
+                fi_fig = create_feature_importance_chart(feature_importance_data["features"])
+                st.plotly_chart(fi_fig, use_container_width=True)
+            else:
+                st.info("Feature importance data not available")
 
     # Display latest matches
     st.subheader("Latest Matches")
 
-    tab1, tab2, tab3 = st.tabs(["All Matches", player1 if player1 else "Player 1", player2 if player2 else "Player 2"])
+    tab1, tab2, tab3 = st.tabs([player1 if player1 else "Player 1", player2 if player2 else "Player 2", "All Players"])
 
     with tab1:
-        matches_data = get_latest_matches(limit=10)
-        if matches_data:
-            display_match_stats(matches_data.get("matches", []))
-
-    with tab2:
         if player1:
             matches_data = get_latest_matches(player=player1, limit=5)
             if matches_data:
                 display_match_stats(matches_data.get("matches", []))
 
-    with tab3:
+    with tab2:
         if player2:
             matches_data = get_latest_matches(player=player2, limit=5)
             if matches_data:
                 display_match_stats(matches_data.get("matches", []))
+
+    with tab3:
+        matches_data = get_latest_matches(limit=10)
+        if matches_data:
+            display_match_stats(matches_data.get("matches", []))
 
     # Footer
     st.markdown("---")

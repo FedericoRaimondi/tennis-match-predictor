@@ -1,9 +1,9 @@
 """FastAPI application for tennis match prediction."""
 
-import pickle
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 from loguru import logger
@@ -18,13 +18,14 @@ app = FastAPI(
 
 # Model info
 MODEL_NAME = "champion_model.pkl"
-MODEL_PATH = Path("model") / MODEL_NAME
+MODEL_PATH = Path("models") / MODEL_NAME
 DATA_PATH = Path("data")
 
 # Load the champion model
 try:
     # load model from pickle
-    model_trainer = ModelTrainer.load_model(MODEL_PATH)
+    model_trainer = ModelTrainer()
+    model_trainer.load_model(path=MODEL_PATH)
     clf = model_trainer.model
     feature_names = model_trainer.feature_names
     logger.info("Champion model loaded successfully")
@@ -36,8 +37,8 @@ except Exception as e:
 class PredictRequest(BaseModel):
     """Request model for prediction endpoint."""
 
-    player1: int
-    player2: int
+    player1: str
+    player2: str
     tournament: str
 
 
@@ -125,11 +126,11 @@ async def predict_winner(request: PredictRequest) -> PredictResponse:
         tournament_info = pd.read_csv(tournament_info_file)
 
         # Get latest stats for both players
-        player1_stats = player_stats[player_stats["p_id"] == request.player1]
-        player2_stats = player_stats[player_stats["p_id"] == request.player2]
+        player1_stats = player_stats[player_stats["p_id"] == int(request.player1)]
+        player2_stats = player_stats[player_stats["p_id"] == int(request.player2)]
 
-        player1_name = player1_stats["player_name"].values[0] if not player1_stats.empty else "Unknown Player 1"
-        player2_name = player2_stats["player_name"].values[0] if not player2_stats.empty else "Unknown Player 2"
+        player1_name = player1_stats["p_name"].values[0] if not player1_stats.empty else "Unknown Player 1"
+        player2_name = player2_stats["p_name"].values[0] if not player2_stats.empty else "Unknown Player 2"
 
         if player1_stats.empty or player2_stats.empty:
             raise HTTPException(
@@ -146,8 +147,8 @@ async def predict_winner(request: PredictRequest) -> PredictResponse:
             logger.warning(f"Tournament '{request.tournament}' not found, using default values")
             tournament_dict = {
                 "tourney_name": "Default Tournament",
-                "surface": "Hard",
-                "tourney_level": "A",
+                "surface": 1,
+                "tourney_level": 1,
                 "draw_size": 32,
             }
             tournament_data = pd.DataFrame([tournament_dict])
@@ -170,13 +171,21 @@ async def predict_winner(request: PredictRequest) -> PredictResponse:
 
         # Filter for feature names used in training
         inference_df = inference_df.reindex(columns=feature_names)
+        inference_df = inference_df[feature_names]
+
+        # Convert categorical columns to numeric if needed
+        for col in inference_df.select_dtypes(include=["object", "category"]).columns:
+            inference_df[col] = pd.Categorical(inference_df[col]).codes
+
+        numeric_cols = inference_df.select_dtypes(include=["number"]).columns
+        inference_df[numeric_cols] = inference_df[numeric_cols].astype(np.float64)
 
         # Make prediction using the exact features the model expects
         probabilities = clf.predict_proba(inference_df)[0]
         player1_prob = float(probabilities[0])
         player2_prob = float(probabilities[1])
 
-        predicted_winner = request.player1 if player1_prob > player2_prob else request.player2
+        predicted_winner = player1_name if player1_prob > player2_prob else player2_name
 
         return PredictResponse(
             player1=player1_name,
@@ -206,12 +215,11 @@ async def get_latest_matches(player: str | None = None, limit: int = 5) -> dict[
         Dictionary with latest match statistics
     """
     try:
-        matches_file = DATA_PATH / "matches_results.pkl"
+        matches_file = DATA_PATH / "matches_results.csv"
         if not matches_file.exists():
             raise HTTPException(status_code=404, detail="Match data not found")
 
-        with open(matches_file, "rb") as f:
-            matches_df = pickle.load(f)
+        matches_df = pd.read_csv(matches_file)
 
         # Filter by player if specified
         if player:
@@ -242,6 +250,51 @@ async def get_latest_matches(player: str | None = None, limit: int = 5) -> dict[
     except Exception as e:
         logger.error(f"Error fetching latest matches: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch matches: {str(e)}")  # noqa: B904
+
+
+@app.get("/feature_importance")
+async def get_feature_importance(top_n: int = 20) -> dict[str, Any]:
+    """Get feature importance from the loaded model.
+
+    Args:
+        top_n: Number of top features to return (default: 20)
+
+    Returns:
+        Dictionary with feature names and their importance scores
+    """
+    if clf is None:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+
+    try:
+        # Check if model has feature_importances_ attribute
+        if not hasattr(clf, "feature_importances_"):
+            raise HTTPException(
+                status_code=400, detail="Model does not support feature importance (not a tree-based model)"
+            )
+
+        # Get feature importances
+        importances = clf.feature_importances_
+
+        # Create DataFrame with feature names and importances
+        feature_importance_df = pd.DataFrame({"feature": feature_names, "importance": importances}).sort_values(
+            "importance", ascending=False
+        )
+
+        # Get top N features
+        top_features = feature_importance_df.head(top_n)
+
+        return {
+            "model_name": MODEL_NAME,
+            "total_features": len(feature_names),
+            "top_n": top_n,
+            "features": top_features.to_dict(orient="records"),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching feature importance: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch feature importance: {str(e)}")  # noqa: B904
 
 
 if __name__ == "__main__":

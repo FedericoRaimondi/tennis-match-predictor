@@ -60,10 +60,9 @@ class ModelTrainer:
 
         # Engineer features
         feature_engineer = FeatureEngineer()
-        df_engineered = feature_engineer.engineer_features(df)
 
         # Prepare features and target
-        X, y = feature_engineer.prepare_features_for_training(df_engineered)
+        X, y = feature_engineer.prepare_features_for_training(df)
         self.feature_names = list(X.columns)
 
         # Split data
@@ -143,9 +142,15 @@ class ModelTrainer:
             mlflow.log_metric("train_size", len(X_train))
             mlflow.log_metric("test_size", len(X_test))
 
+            # Log model signature
+            predictions = self.model.predict(X_test.iloc[:5])
+            signature = mlflow.models.infer_signature(X_test.iloc[:5], predictions)
             # Log model
             mlflow.xgboost.log_model(
-                self.model, "model", registered_model_name=self.config.mlflow.model_name, input_example=X_train.iloc[:5]
+                self.model,
+                name="model",
+                registered_model_name=self.config.mlflow.model_name,
+                signature=signature,
             )
 
             # Log confusion matrix and classification report

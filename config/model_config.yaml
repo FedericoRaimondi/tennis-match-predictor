@@ -22,7 +22,7 @@ hyperparameter_tuning:
   timeout: 3600
 
 training:
-  test_size: 0.2
+  test_size: 0.1
   validation_size: 0.2
   random_state: 42
   min_accuracy_threshold: 0.60

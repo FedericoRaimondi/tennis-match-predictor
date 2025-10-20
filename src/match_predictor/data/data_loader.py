@@ -275,6 +275,31 @@ class DataLoader:
             ]
             player_stats_hist_df = player_stats_hist_df.drop(columns=to_remove)
 
+        # Convert categorical columns to numeric if needed
+        not_cat = [
+            "p_id",
+            "p_id_p2",
+            "p_name",
+            "p_name_p2",
+            "o_id",
+            "o_id_p2",
+            "o_name",
+            "o_name_p2",
+            "tourney_id",
+            "tourney_name",
+            "draw_size",
+            "tourney_date",
+            "tourney_year",
+            "match_num",
+        ]
+        cols_to_convert = [
+            col
+            for col in player_stats_hist_df.select_dtypes(include=["object", "category"]).columns
+            if col not in not_cat
+        ]
+        for col in cols_to_convert:
+            player_stats_hist_df[col] = pd.Categorical(player_stats_hist_df[col]).codes
+
         self.logger.info("Player statistics calculation complete.")
         return player_stats_hist_df
 
@@ -301,13 +326,17 @@ class DataLoader:
             "tourney_year",
         ]
         tournament_info_df = atp_matches_df[tournament_info_cols]
-        tournament_info_df["tourney_name"] = tournament_info_df["tourney_name"].str.strip().upper()
+        tournament_info_df["tourney_name"] = tournament_info_df["tourney_name"].str.strip().str.upper()
         # sort by tourney_date descending and drop duplicates to keep only the latest info
         tournament_info_df = tournament_info_df.sort_values(by="tourney_date", ascending=False)
         # drop tourney id, date, year columns
         tournament_info_df = tournament_info_df.drop(columns=["tourney_id", "tourney_date", "tourney_year"])
         # keep only the first occurrence of each tournament name. Basically latest info for each tournament.
         tournament_info_df = tournament_info_df.drop_duplicates(subset=["tourney_name"]).reset_index(drop=True)
+
+        for col in ["surface", "tourney_level"]:
+            tournament_info_df[col] = pd.Categorical(tournament_info_df[col]).codes
+
         self.logger.info(f"Loaded info for {tournament_info_df.shape[0]} tournaments.")
 
         return tournament_info_df
@@ -372,16 +401,11 @@ class DataLoader:
         ]
         # add _p1 and _p2 prefixes to to_remove cols
         to_remove = [f"{col}_p1" for col in to_remove] + [f"{col}_p2" for col in to_remove]
-        ml_dataset = ml_dataset.drop(columns=to_remove)
+        ml_dataset = ml_dataset.drop(columns=[col for col in to_remove if col in ml_dataset.columns])
 
-        # # add tournament info
-        # ml_dataset = ml_dataset.merge(
-        #     self.get_tournament_info(df=atp_matches_df),
-        #     how="left",
-        #     left_on="tourney_id",
-        #     right_on="tourney_id",
-        #     suffixes=("", "_t"),
-        # )
+        # convert all numeric columns to float32 to save memory and ensure compatibility
+        numeric_cols = ml_dataset.select_dtypes(include=["number"]).columns
+        ml_dataset[numeric_cols] = ml_dataset[numeric_cols].astype(np.float64)
 
         self.logger.info("Dataset preparation complete.")
         self.logger.info(f"Final dataset shape: {ml_dataset.shape}")

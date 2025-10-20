@@ -197,8 +197,7 @@ def check_new_data_task(data_config: DataConfig) -> bool:
     matches_file = data_path / data_config.matches_results_file
 
     if matches_file.exists():
-        with open(matches_file, "rb") as f:
-            existing_matches = pickle.load(f)
+        existing_matches = pd.read_csv(matches_file)
 
         new_count = len(new_matches)
         existing_count = len(existing_matches)
@@ -233,8 +232,7 @@ def detect_drift_task(data_config: DataConfig) -> dict:
         logger.warning("No reference data found, skipping drift detection")
         return {"drift_detected": False, "drift_share": 0.0, "requires_retraining": False}
 
-    with open(matches_file, "rb") as f:
-        reference_matches = pickle.load(f)
+    reference_matches = pd.read_csv(matches_file)
 
     current_matches = loader.load_matches()
 
@@ -244,12 +242,10 @@ def detect_drift_task(data_config: DataConfig) -> dict:
 
     # Engineer features
     engineer = FeatureEngineer()
-    reference_features = engineer.engineer_features(reference_ml)
-    current_features = engineer.engineer_features(current_ml)
 
     # Prepare for monitoring
-    X_ref, y_ref = engineer.prepare_features_for_training(reference_features)
-    X_cur, y_cur = engineer.prepare_features_for_training(current_features)
+    X_ref, y_ref = engineer.prepare_features_for_training(reference_ml)
+    X_cur, y_cur = engineer.prepare_features_for_training(current_ml)
 
     # Monitor drift
     monitor = ModelMonitor()
