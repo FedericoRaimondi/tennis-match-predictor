@@ -1,9 +1,10 @@
 # 🎾 Tennis Match Predictor
 
 [![CI](https://img.shields.io/github/actions/workflow/status/FedericoRaimondi/tennis-match-predictor/ci.yml?branch=main&label=CI)](https://github.com/FedericoRaimondi/tennis-match-predictor/actions)
-[![Python](https://img.shields.io/badge/python-3.13%2B-blue.svg)](https://www.python.org/downloads/)
+[![codecov](https://codecov.io/gh/FedericoRaimondi/tennis-match-predictor/graph/badge.svg?token=ZgiMd9iSyu)](https://codecov.io/gh/FedericoRaimondi/tennis-match-predictor)
+[![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
+[![Docs](https://img.shields.io/github/actions/workflow/status/FedericoRaimondi/tennis-match-predictor/docs.yml?branch=main&label=Documentation)](https://github.com/FedericoRaimondi/tennis-match-predictor/actions)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 
 A complete end-to-end machine learning system for predicting tennis match outcomes, featuring a FastAPI backend, Streamlit frontend, and automated MLOps pipelines.
 
