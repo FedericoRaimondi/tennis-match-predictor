@@ -199,7 +199,7 @@ docker-compose logs -f
 uv run pytest
 
 # Run with coverage
-uv run pytest --cov=match_predictor --cov-report=html
+uv run pytest --cov=src/match_predictor --cov-report=html
 
 # Run specific test file
 uv run pytest tests/test_api.py -v
@@ -426,12 +426,45 @@ curl "http://localhost:8000/latest_matches?player=Roger Federer&limit=5"
 
 The project includes comprehensive tests:
 - **Unit Tests**: Individual component testing
-- **Integration Tests**: API and pipeline testing
+- **Integration Tests**: API and pipeline testing  
 - **Feature Tests**: Feature engineering validation
 - **Config Tests**: Configuration validation
 - **Flow Tests**: Prefect workflow testing
 
-Test coverage: 61+ tests covering all major components.
+**Test Coverage**: 181 tests passing with 79% code coverage across all modules.
+
+### Running Tests
+
+```bash
+# Run all tests
+uv run pytest
+
+# Run with coverage report
+uv run pytest --cov=src/match_predictor --cov-report=html --cov-report=term-missing
+
+# Run specific test file
+uv run pytest tests/test_api.py -v
+
+# View coverage report
+open htmlcov/index.html  # Opens HTML coverage report in browser
+```
+
+### Coverage by Module
+
+| Module | Coverage | Status |
+|--------|----------|--------|
+| training.py | 100% | ✅ Perfect |
+| hyperparameter_tuning.py | 100% | ✅ Perfect |
+| gh_utils.py | 100% | ✅ Perfect |
+| data_loader.py | 100% | ✅ Perfect |
+| stats_helpers.py | 100% | ✅ Perfect |
+| config.py | 98% | ✅ Excellent |
+| feature_engineering.py | 95% | ✅ Good |
+| base_model.py | 83% | ⚠️ Good |
+| estimator_model.py | 78% | ⚠️ Needs work |
+| monitoring.py | 66% | ⚠️ Needs tests |
+| flows.py | 46% | ⚠️ Needs tests |
+| **Overall** | **79%** | ⚠️ Target: ≥90% |
 
 ## 📝 Data Source
 
