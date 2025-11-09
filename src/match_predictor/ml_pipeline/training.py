@@ -85,6 +85,7 @@ class ModelTrainer:
             self.logger.info("Performing hyperparameter tuning...")
             # For tuning, we need the estimator class
             import importlib
+
             module = importlib.import_module(self.config.estimator.module)
             estimator_class = getattr(module, self.config.estimator.class_name)
             tuner = HyperparameterTuner(self.config)
@@ -218,6 +219,7 @@ class ModelTrainer:
 
         # Load the underlying model into an EstimatorModel wrapper
         from match_predictor.model.estimator_model import EstimatorModel
+
         self.estimator_model = EstimatorModel(config=self.config)
         self.estimator_model.model = saved_data["model"]
 

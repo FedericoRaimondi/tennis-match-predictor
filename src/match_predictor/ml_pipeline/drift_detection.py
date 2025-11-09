@@ -79,7 +79,9 @@ class FeatureAwareDriftDetector:
         if self.feature_names is not None:
             available_features = [f for f in self.feature_names if f in df.columns]
             self.reference_data = df[available_features].copy()
-            self.logger.info(f"Reference data set with {len(self.reference_data)} samples, {len(available_features)} features")
+            self.logger.info(
+                f"Reference data set with {len(self.reference_data)} samples, {len(available_features)} features"
+            )
         else:
             self.reference_data = df.copy()
             self.logger.info(f"Reference data set with {len(self.reference_data)} samples, all columns")
@@ -94,7 +96,9 @@ class FeatureAwareDriftDetector:
         if self.feature_names is not None:
             available_features = [f for f in self.feature_names if f in df.columns]
             self.current_data = df[available_features].copy()
-            self.logger.info(f"Current data set with {len(self.current_data)} samples, {len(available_features)} features")
+            self.logger.info(
+                f"Current data set with {len(self.current_data)} samples, {len(available_features)} features"
+            )
         else:
             self.current_data = df.copy()
             self.logger.info(f"Current data set with {len(self.current_data)} samples, all columns")
@@ -207,9 +211,7 @@ class FeatureAwareDriftDetector:
             self.logger.warning(f"JS divergence failed: {e}")
             return {"drift_detected": False, "divergence": 0.0, "test": "js", "error": str(e)}
 
-    def detect_drift(
-        self, ks_threshold: float = 0.05, js_threshold: float = 0.1
-    ) -> dict[str, Any]:
+    def detect_drift(self, ks_threshold: float = 0.05, js_threshold: float = 0.1) -> dict[str, Any]:
         """Detect drift on model-relevant features.
 
         Args:
@@ -264,7 +266,9 @@ class FeatureAwareDriftDetector:
         drift_share = num_drifted / total_features if total_features > 0 else 0.0
         drift_detected = num_drifted > 0
 
-        self.logger.info(f"Drift analysis complete: {num_drifted}/{total_features} features drifted ({drift_share:.2%})")
+        self.logger.info(
+            f"Drift analysis complete: {num_drifted}/{total_features} features drifted ({drift_share:.2%})"
+        )
 
         # Determine if retraining is required (>30% drift)
         requires_retraining = drift_share > 0.3
@@ -299,7 +303,9 @@ class FeatureAwareDriftDetector:
             # Calculate F1 score
             f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
 
-            self.logger.info(f"Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1: {f1:.4f}")
+            self.logger.info(
+                f"Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1: {f1:.4f}"
+            )
 
             return {
                 "accuracy": float(accuracy),

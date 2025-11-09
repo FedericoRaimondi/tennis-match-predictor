@@ -26,7 +26,7 @@ class EstimatorModel(BaseModel):
 
         # Handle ModelConfig object from match_predictor.config
         if config is not None:
-            if hasattr(config, 'estimator'):
+            if hasattr(config, "estimator"):
                 # It's a ModelConfig object
                 estimator_config = config.estimator
                 module_path = estimator_config.module

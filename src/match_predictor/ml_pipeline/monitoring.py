@@ -86,7 +86,9 @@ class ModelMonitor:
 
         self.logger.info(f"Data drift detected: {drift_results['drift_detected']}")
         self.logger.info(f"Drift share: {drift_results['drift_share']:.2%}")
-        self.logger.info(f"Number of drifted features: {drift_results['drifted_features']}/{drift_results['total_features']}")
+        self.logger.info(
+            f"Number of drifted features: {drift_results['drifted_features']}/{drift_results['total_features']}"
+        )
 
         return drift_results
 
@@ -183,24 +185,24 @@ class ModelMonitor:
                 <strong>Current Samples:</strong> {len(self.current_data)}
             </div>
             <div class="metric">
-                <strong>Features Monitored:</strong> {drift_results['total_features']}
+                <strong>Features Monitored:</strong> {drift_results["total_features"]}
             </div>
             <div class="metric">
                 <strong>Drift Status:</strong>
-                <span class="{'drift' if drift_results['drift_detected'] else 'no-drift'}">
-                    {'DRIFT DETECTED' if drift_results['drift_detected'] else 'NO DRIFT'}
+                <span class="{"drift" if drift_results["drift_detected"] else "no-drift"}">
+                    {"DRIFT DETECTED" if drift_results["drift_detected"] else "NO DRIFT"}
                 </span>
             </div>
             <div class="metric">
-                <strong>Drift Share:</strong> {drift_results['drift_share']:.2%}
+                <strong>Drift Share:</strong> {drift_results["drift_share"]:.2%}
             </div>
             <div class="metric">
-                <strong>Drifted Features:</strong> {drift_results['drifted_features']} / {drift_results['total_features']}
+                <strong>Drifted Features:</strong> {drift_results["drifted_features"]} / {drift_results["total_features"]}
             </div>
             <div class="metric">
                 <strong>Requires Retraining:</strong>
-                <span class="{'drift' if drift_results['requires_retraining'] else 'no-drift'}">
-                    {'YES' if drift_results['requires_retraining'] else 'NO'}
+                <span class="{"drift" if drift_results["requires_retraining"] else "no-drift"}">
+                    {"YES" if drift_results["requires_retraining"] else "NO"}
                 </span>
             </div>
 
@@ -228,8 +230,8 @@ class ModelMonitor:
             html_content += f"""
                 <tr class="{drift_class}">
                     <td>{feature}</td>
-                    <td>{details.get('type', 'unknown')}</td>
-                    <td>{details.get('test', 'unknown').upper()}</td>
+                    <td>{details.get("type", "unknown")}</td>
+                    <td>{details.get("test", "unknown").upper()}</td>
                     <td>{drift_status}</td>
                     <td>{test_details}</td>
                 </tr>
