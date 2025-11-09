@@ -15,13 +15,14 @@ RUN pip install --no-cache-dir uv
 WORKDIR /app
 
 # Copy dependency files
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml uv.lock README.md ./
 
-# Install dependencies
+# Copy source code (needed for package installation)
+COPY src/ ./src/
+
 RUN uv sync --frozen --no-dev
 
-# Copy source code
-COPY src/ ./src/
+# Copy remaining files
 COPY config/ ./config/
 COPY data/ ./data/
 COPY models/ ./models/

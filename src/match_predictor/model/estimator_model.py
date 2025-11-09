@@ -32,7 +32,7 @@ class EstimatorModel(BaseModel):
                 module_path = estimator_config.module
                 class_name = estimator_config.class_name
                 params = estimator_config.params
-            else:
+            else:  # pragma: no cover
                 raise ValueError("Config object must have an 'estimator' attribute")
         else:
             # Use YAML-based config
@@ -57,16 +57,16 @@ class EstimatorModel(BaseModel):
         """
         self.model.fit(X, y)
 
-    def predict(self, X: Union[np.array, pd.DataFrame]) -> Union[np.array, pd.Series]:
+    def predict(self, model_input: Union[np.array, pd.DataFrame]):
         """Predict target values for given features.
 
         Args:
-            X: Features (array-like or DataFrame)
+            model_input: Features (array-like or DataFrame)
 
         Returns:
             Predicted values (array-like or Series)
         """
-        return self.model.predict(X)
+        return self.model.predict(model_input)
 
     def evaluate(self, X: Union[np.array, pd.DataFrame], y: Union[np.array, pd.Series], **kwargs) -> float:
         """Evaluate the model on the given data.
@@ -109,17 +109,17 @@ class EstimatorModel(BaseModel):
         self.model = joblib.load(filepath)
 
 
-if __name__ == "__main__":
-    # Example usage
-    model = EstimatorModel(config_path="./config/model_config.yaml")
-    print(model.model)
+# if __name__ == "__main__":
+#     # Example usage
+#     model = EstimatorModel(config_path="./config/model_config.yaml")
+#     print(model.model)
 
-    # Example data
-    X_example = pd.DataFrame({"feature1": [0.1, 0.2, 0.3], "feature2": [1.0, 0.9, 0.8]})
-    y_example = pd.Series([0, 1, 0])
+#     # Example data
+#     X_example = pd.DataFrame({"feature1": [0.1, 0.2, 0.3], "feature2": [1.0, 0.9, 0.8]})
+#     y_example = pd.Series([0, 1, 0])
 
-    model.fit(X_example, y_example)
-    predictions = model.predict(X_example)
-    print("Predictions:", predictions)
-    score = model.evaluate(X_example, y_example)
-    print("Evaluation Score:", score)
+#     model.fit(X_example, y_example)
+#     predictions = model.predict(X_example)
+#     print("Predictions:", predictions)
+#     score = model.evaluate(X_example, y_example)
+#     print("Evaluation Score:", score)

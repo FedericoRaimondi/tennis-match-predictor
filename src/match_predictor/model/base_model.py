@@ -36,19 +36,19 @@ class BaseModel(ABC, mlflow.pyfunc.PythonModel):
             X: Features (array-like or DataFrame)
             y: Target values (array-like)
         """
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
-    def predict(self, X: Union[np.array, pd.DataFrame]) -> Union[np.array, pd.Series]:
+    def predict(self, model_input: Union[np.array, pd.DataFrame]):
         """Predict target values for given features.
 
         Args:
-            X: Features (array-like or DataFrame)
+            model_input: Features (array-like or DataFrame)
 
         Returns:
             Predicted values (array-like or Series)
         """
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def evaluate(self, X: Union[np.array, pd.DataFrame], y: Union[np.array, pd.Series]) -> float:
@@ -61,7 +61,7 @@ class BaseModel(ABC, mlflow.pyfunc.PythonModel):
         Returns:
             Evaluation metric(s)
         """
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def save(self, filepath: str):
@@ -70,7 +70,7 @@ class BaseModel(ABC, mlflow.pyfunc.PythonModel):
         Args:
             filepath: Path to the file where the model will be saved
         """
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def load(self, filepath: str) -> "BaseModel":
@@ -82,4 +82,4 @@ class BaseModel(ABC, mlflow.pyfunc.PythonModel):
         Returns:
             model instance
         """
-        pass
+        pass  # pragma: no cover

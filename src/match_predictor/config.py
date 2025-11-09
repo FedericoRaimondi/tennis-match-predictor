@@ -108,6 +108,7 @@ class HyperparameterTuningConfig(BaseModel):
     timeout: int | None = Field(
         default=3600, description="Timeout for hyperparameter tuning in seconds (None for no timeout)"
     )
+    device: str = Field(default="cpu", description="Device to use for model training (e.g., 'cpu' or 'gpu')")
 
 
 class TrainingConfig(BaseModel):
