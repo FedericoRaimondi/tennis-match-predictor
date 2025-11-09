@@ -211,16 +211,17 @@ def check_new_data_task(data_config: DataConfig) -> bool:
 
 
 @task(name="detect_drift")
-def detect_drift_task(data_config: DataConfig) -> dict:
-    """Detect data drift.
+def detect_drift_task(data_config: DataConfig, model_config: ModelConfig) -> dict:
+    """Detect data drift using feature-aware monitoring.
 
     Args:
         data_config: Data configuration
+        model_config: Model configuration
 
     Returns:
         Dictionary with drift detection results
     """
-    logger.info("Detecting data drift...")
+    logger.info("Detecting data drift with feature-aware monitoring...")
 
     loader = DataLoader(data_config)
 
@@ -233,7 +234,6 @@ def detect_drift_task(data_config: DataConfig) -> dict:
         return {"drift_detected": False, "drift_share": 0.0, "requires_retraining": False}
 
     reference_matches = pd.read_csv(matches_file)
-
     current_matches = loader.load_matches()
 
     # Prepare datasets
@@ -247,8 +247,23 @@ def detect_drift_task(data_config: DataConfig) -> dict:
     X_ref, y_ref = engineer.prepare_features_for_training(reference_ml)
     X_cur, y_cur = engineer.prepare_features_for_training(current_ml)
 
-    # Monitor drift
-    monitor = ModelMonitor()
+    # Load champion model to get feature names
+    champion_path = Path(model_config.champion_model_path) / "champion_model.pkl"
+    trained_model = None
+    feature_names = None
+
+    if champion_path.exists():
+        try:
+            with open(champion_path, "rb") as f:
+                champion_data = pickle.load(f)
+            trained_model = champion_data.get("model")
+            feature_names = champion_data.get("feature_names")
+            logger.info(f"Loaded champion model with {len(feature_names) if feature_names else 0} features")
+        except Exception as e:
+            logger.warning(f"Could not load champion model: {e}")
+
+    # Monitor drift with feature-aware detector
+    monitor = ModelMonitor(model=trained_model, feature_names=feature_names)
     monitor.set_reference_data(X_ref.assign(winner=y_ref))
     monitor.set_current_data(X_cur.assign(winner=y_cur))
 
@@ -271,17 +286,17 @@ def detect_drift_task(data_config: DataConfig) -> dict:
 def monitoring_flow(
     data_config_path: str = "config/data_config.yaml", model_config_path: str = "config/model_config.yaml"
 ):
-    """Main monitoring pipeline flow.
+    """Main monitoring pipeline flow with feature-aware drift detection.
 
     Args:
         data_config_path: Path to data configuration YAML
         model_config_path: Path to model configuration YAML
     """
-    logger.info("Starting monitoring pipeline...")
+    logger.info("Starting monitoring pipeline with feature-aware drift detection...")
 
     # Load configurations
     data_config = DataConfig.from_yaml(data_config_path)
-    _model_config = ModelConfig.from_yaml(model_config_path)
+    model_config = ModelConfig.from_yaml(model_config_path)
 
     # Check for new data
     has_new_data = check_new_data_task(data_config)
@@ -290,8 +305,8 @@ def monitoring_flow(
         logger.info("No new data available, skipping monitoring")
         return {"has_new_data": False, "should_retrain": False}
 
-    # Detect drift
-    drift_results = detect_drift_task(data_config)
+    # Detect drift with feature-aware monitoring
+    drift_results = detect_drift_task(data_config, model_config)
 
     should_retrain = drift_results["requires_retraining"]
 
