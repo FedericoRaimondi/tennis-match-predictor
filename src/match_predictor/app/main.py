@@ -1,5 +1,6 @@
 """Streamlit application for tennis match prediction."""
 
+import os
 from pathlib import Path
 from typing import Tuple
 
@@ -13,7 +14,7 @@ from loguru import logger
 st.set_page_config(page_title="Tennis Match Predictor", page_icon="🎾", layout="wide", initial_sidebar_state="expanded")
 
 # Constants
-API_URL = "http://localhost:8000"
+API_URL = os.getenv("API_URL", "http://localhost:8000")
 DATA_PATH = Path("data")
 
 

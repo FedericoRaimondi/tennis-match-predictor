@@ -42,7 +42,6 @@ dev = [
 ]
 
 [project.scripts]
-main = 'match_predictor.main:main'
 train-model = 'match_predictor.ml_pipeline.flows:run_training_flow'
 monitor-model = 'match_predictor.ml_pipeline.flows:run_monitoring_flow'
 

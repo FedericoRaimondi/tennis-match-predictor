@@ -37,10 +37,10 @@ class HyperparameterTuner:
         # Define hyperparameter search space for XGBoost
         params = {
             "max_depth": trial.suggest_int("max_depth", 2, 10),
-            "learning_rate": trial.suggest_float("learning_rate", 0.001, 0.3, log=True),
-            "n_estimators": trial.suggest_int("n_estimators", 100, 2000, step=100),
+            "learning_rate": trial.suggest_float("learning_rate", 0.0001, 0.1, log=True),
+            "n_estimators": trial.suggest_int("n_estimators", 100, 5000, step=100),
             "min_child_weight": trial.suggest_int("min_child_weight", 1, 10),
-            "subsample": trial.suggest_float("subsample", 0.5, 1.0),
+            "subsample": trial.suggest_float("subsample", 0.3, 1.0),
             "colsample_bytree": trial.suggest_float("colsample_bytree", 0.3, 1.0),
             "gamma": trial.suggest_float("gamma", 0.0, 5.0),
             "reg_alpha": trial.suggest_float("reg_alpha", 0.0, 1.0),
@@ -52,6 +52,7 @@ class HyperparameterTuner:
             "objective": "binary:logistic",
             "eval_metric": "logloss",
             "enable_categorical": True,
+            "device": self.tuning_config.device,
             "seed": self.tuning_config.random_state,
             "verbosity": 0,
         }
