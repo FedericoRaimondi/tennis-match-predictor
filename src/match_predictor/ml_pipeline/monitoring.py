@@ -1,34 +1,26 @@
-"""Model and data monitoring module using Evidently."""
-
-# TODO: Review and enhance monitoring capabilities
+"""Model and data monitoring module with intelligent feature-aware drift detection."""
 
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from evidently import Report
 from loguru import logger
 
-# Try to import metrics, fall back to simpler approach if not available
-try:
-    from evidently.metrics import (
-        DataDriftTable,
-        DatasetDriftMetric,
-        DatasetMissingValuesMetric,
-    )
-
-    EVIDENTLY_METRICS_AVAILABLE = True
-except ImportError:
-    EVIDENTLY_METRICS_AVAILABLE = False
-    logger.warning("Evidently metrics not available, using simplified monitoring")
+from match_predictor.ml_pipeline.drift_detection import FeatureAwareDriftDetector
 
 
 class ModelMonitor:
-    """Class for monitoring model and data drift."""
+    """Class for monitoring model and data drift with feature-aware detection."""
 
-    def __init__(self):
-        """Initialize model monitor."""
+    def __init__(self, model=None, feature_names: list[str] | None = None):
+        """Initialize model monitor.
+
+        Args:
+            model: Trained model with feature_names_in_ attribute (optional)
+            feature_names: Explicit list of feature names to monitor (optional)
+        """
         self.logger = logger
+        self.drift_detector = FeatureAwareDriftDetector(model=model, feature_names=feature_names)
         self.reference_data = None
         self.current_data = None
         self.target_column = None
@@ -47,6 +39,14 @@ class ModelMonitor:
         self.reference_data = df.copy()
         self.target_column = target_column
         self.prediction_column = prediction_column
+
+        # Filter out target and prediction columns for drift detection
+        feature_columns = [col for col in df.columns if col not in [target_column, prediction_column]]
+        if feature_columns:
+            self.drift_detector.set_reference_data(df[feature_columns])
+        else:
+            self.drift_detector.set_reference_data(df)
+
         self.logger.info(f"Reference data set with {len(df)} samples")
 
     def set_current_data(self, df: pd.DataFrame):
@@ -56,10 +56,22 @@ class ModelMonitor:
             df: Current dataframe
         """
         self.current_data = df.copy()
+
+        # Filter out target and prediction columns for drift detection
+        feature_columns = [col for col in df.columns if col not in [self.target_column, self.prediction_column]]
+        if feature_columns:
+            self.drift_detector.set_current_data(df[feature_columns])
+        else:
+            self.drift_detector.set_current_data(df)
+
         self.logger.info(f"Current data set with {len(df)} samples")
 
-    def check_data_drift(self) -> dict[str, Any]:
-        """Check for data drift between reference and current data.
+    def check_data_drift(self, ks_threshold: float = 0.05, js_threshold: float = 0.1) -> dict[str, Any]:
+        """Check for data drift between reference and current data using feature-aware detection.
+
+        Args:
+            ks_threshold: P-value threshold for KS test on numerical features
+            js_threshold: Divergence threshold for JS divergence on categorical features
 
         Returns:
             Dictionary with drift detection results
@@ -67,51 +79,18 @@ class ModelMonitor:
         if self.reference_data is None or self.current_data is None:
             raise ValueError("Both reference and current data must be set")
 
-        self.logger.info("Checking for data drift...")
+        self.logger.info("Checking for data drift with feature-aware detection...")
 
-        if not EVIDENTLY_METRICS_AVAILABLE:
-            # Simplified drift detection
-            self.logger.warning("Using simplified drift detection")
-            return {"drift_detected": False, "drift_share": 0.0, "drifted_features": 0, "requires_retraining": False}
+        # Use the feature-aware drift detector
+        drift_results = self.drift_detector.detect_drift(ks_threshold=ks_threshold, js_threshold=js_threshold)
 
-        # Create data drift report
-        drift_report = Report(
-            metrics=[
-                DatasetDriftMetric(),
-                DataDriftTable(),
-            ]
+        self.logger.info(f"Data drift detected: {drift_results['drift_detected']}")
+        self.logger.info(f"Drift share: {drift_results['drift_share']:.2%}")
+        self.logger.info(
+            f"Number of drifted features: {drift_results['drifted_features']}/{drift_results['total_features']}"
         )
 
-        drift_report.run(reference_data=self.reference_data, current_data=self.current_data)
-
-        # Extract metrics
-        drift_results = drift_report.as_dict()
-
-        # Parse results - structure may vary by Evidently version
-        try:
-            metrics = drift_results.get("metrics", [])
-            dataset_drift_metric = next((m for m in metrics if m.get("metric") == "DatasetDriftMetric"), None)
-
-            if dataset_drift_metric:
-                result = dataset_drift_metric.get("result", {})
-                drift_detected = result.get("dataset_drift", False)
-                drift_share = result.get("drift_share", 0.0)
-                drifted_features = result.get("number_of_drifted_columns", 0)
-
-                self.logger.info(f"Data drift detected: {drift_detected}")
-                self.logger.info(f"Drift share: {drift_share:.2%}")
-                self.logger.info(f"Number of drifted features: {drifted_features}")
-
-                return {
-                    "drift_detected": drift_detected,
-                    "drift_share": drift_share,
-                    "drifted_features": drifted_features,
-                    "requires_retraining": drift_detected and drift_share > 0.3,
-                }
-        except Exception as e:
-            self.logger.warning(f"Error parsing drift results: {e}")
-
-        return {"drift_detected": False, "drift_share": 0.0, "drifted_features": 0, "requires_retraining": False}
+        return drift_results
 
     def check_data_quality(self) -> dict[str, Any]:
         """Check data quality metrics.
@@ -124,42 +103,21 @@ class ModelMonitor:
 
         self.logger.info("Checking data quality...")
 
-        if not EVIDENTLY_METRICS_AVAILABLE:
-            # Simplified quality check
-            missing_values = self.current_data.isnull().sum().sum()
-            self.logger.info(f"Missing values: {missing_values}")
-            return {
-                "missing_values": missing_values,
-                "data_quality_score": 1.0
-                - (missing_values / (len(self.current_data) * len(self.current_data.columns))),
-            }
-
-        # Create data quality report
-        quality_report = Report(metrics=[DatasetMissingValuesMetric()])
-
-        quality_report.run(reference_data=self.reference_data, current_data=self.current_data)
-
-        # Extract metrics
-        quality_results = quality_report.as_dict()
-
-        # Parse key quality metrics
-        metrics = quality_results.get("metrics", [])
-
-        missing_values = 0
-        for metric in metrics:
-            if metric.get("metric") == "DatasetMissingValuesMetric":
-                missing_values = metric["result"].get("current", {}).get("number_of_missing_values", 0)
-                break
+        # Calculate missing values
+        missing_values = self.current_data.isnull().sum().sum()
+        total_cells = len(self.current_data) * len(self.current_data.columns)
+        data_quality_score = 1.0 - (missing_values / total_cells) if total_cells > 0 else 1.0
 
         self.logger.info(f"Missing values: {missing_values}")
+        self.logger.info(f"Data quality score: {data_quality_score:.4f}")
 
         return {
-            "missing_values": missing_values,
-            "data_quality_score": 1.0 - (missing_values / (len(self.current_data) * len(self.current_data.columns))),
+            "missing_values": int(missing_values),
+            "data_quality_score": float(data_quality_score),
         }
 
     def check_model_performance(self, predictions: pd.Series, actual: pd.Series) -> dict[str, Any]:
-        """Check model performance metrics.
+        """Check model performance metrics using custom error metrics.
 
         Args:
             predictions: Model predictions
@@ -170,27 +128,15 @@ class ModelMonitor:
         """
         self.logger.info("Checking model performance...")
 
-        # Calculate metrics manually
-        from sklearn.metrics import accuracy_score, precision_score, recall_score
+        # Use feature-aware drift detector's performance metrics
+        performance_results = self.drift_detector.calculate_performance_metrics(predictions, actual)
 
-        accuracy = accuracy_score(actual, predictions)
-        try:
-            precision = precision_score(actual, predictions, zero_division=0)
-            recall = recall_score(actual, predictions, zero_division=0)
-        except Exception:
-            precision = 0.0
-            recall = 0.0
+        self.logger.info(f"Model accuracy: {performance_results['accuracy']:.4f}")
+        self.logger.info(f"Model precision: {performance_results['precision']:.4f}")
+        self.logger.info(f"Model recall: {performance_results['recall']:.4f}")
+        self.logger.info(f"Model F1: {performance_results.get('f1_score', 0):.4f}")
 
-        self.logger.info(f"Model accuracy: {accuracy:.4f}")
-        self.logger.info(f"Model precision: {precision:.4f}")
-        self.logger.info(f"Model recall: {recall:.4f}")
-
-        return {
-            "accuracy": accuracy,
-            "precision": precision,
-            "recall": recall,
-            "performance_degradation": accuracy < 0.60,  # Threshold can be configured
-        }
+        return performance_results
 
     def generate_monitoring_report(self, output_path: str | Path = "reports/monitoring_report.html") -> None:
         """Generate comprehensive monitoring report.
@@ -203,35 +149,114 @@ class ModelMonitor:
 
         self.logger.info("Generating monitoring report...")
 
-        if not EVIDENTLY_METRICS_AVAILABLE:
-            # Create simple HTML report
-            output_path = Path(output_path)
-            output_path.parent.mkdir(parents=True, exist_ok=True)
+        # Detect drift
+        drift_results = self.check_data_drift()
 
-            with open(output_path, "w") as f:
-                f.write("<html><body><h1>Monitoring Report</h1>")
-                f.write("<p>Evidently metrics not fully available. Using simplified monitoring.</p>")
-                f.write("</body></html>")
-
-            self.logger.info(f"Simple monitoring report saved to {output_path}")
-            return
-
-        # Create comprehensive report
-        report = Report(
-            metrics=[
-                DatasetDriftMetric(),
-                DataDriftTable(),
-                DatasetMissingValuesMetric(),
-            ]
-        )
-
-        report.run(reference_data=self.reference_data, current_data=self.current_data)
-
-        # Save report
+        # Create HTML report
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        report.save_html(str(output_path))
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Model Monitoring Report</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 20px; }}
+                h1 {{ color: #333; }}
+                h2 {{ color: #666; }}
+                .metric {{ margin: 10px 0; }}
+                .drift {{ color: #d9534f; font-weight: bold; }}
+                .no-drift {{ color: #5cb85c; font-weight: bold; }}
+                table {{ border-collapse: collapse; width: 100%; margin: 20px 0; }}
+                th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+                th {{ background-color: #f2f2f2; }}
+                .drifted {{ background-color: #ffcccc; }}
+            </style>
+        </head>
+        <body>
+            <h1>🎾 Tennis Match Predictor - Monitoring Report</h1>
+
+            <h2>📊 Summary</h2>
+            <div class="metric">
+                <strong>Reference Samples:</strong> {len(self.reference_data)}
+            </div>
+            <div class="metric">
+                <strong>Current Samples:</strong> {len(self.current_data)}
+            </div>
+            <div class="metric">
+                <strong>Features Monitored:</strong> {drift_results["total_features"]}
+            </div>
+            <div class="metric">
+                <strong>Drift Status:</strong>
+                <span class="{"drift" if drift_results["drift_detected"] else "no-drift"}">
+                    {"DRIFT DETECTED" if drift_results["drift_detected"] else "NO DRIFT"}
+                </span>
+            </div>
+            <div class="metric">
+                <strong>Drift Share:</strong> {drift_results["drift_share"]:.2%}
+            </div>
+            <div class="metric">
+                <strong>Drifted Features:</strong> {drift_results["drifted_features"]} / {drift_results["total_features"]}
+            </div>
+            <div class="metric">
+                <strong>Requires Retraining:</strong>
+                <span class="{"drift" if drift_results["requires_retraining"] else "no-drift"}">
+                    {"YES" if drift_results["requires_retraining"] else "NO"}
+                </span>
+            </div>
+
+            <h2>🔍 Feature-Level Drift Details</h2>
+            <table>
+                <tr>
+                    <th>Feature</th>
+                    <th>Type</th>
+                    <th>Test</th>
+                    <th>Drift Status</th>
+                    <th>Details</th>
+                </tr>
+        """
+
+        for feature, details in drift_results.get("feature_drift_details", {}).items():
+            drift_class = "drifted" if details.get("drift_detected", False) else ""
+            drift_status = "DRIFT" if details.get("drift_detected", False) else "OK"
+
+            test_details = ""
+            if details.get("test") == "ks":
+                test_details = f"Statistic: {details.get('statistic', 0):.4f}, P-value: {details.get('p_value', 0):.4f}"
+            elif details.get("test") == "js":
+                test_details = f"Divergence: {details.get('divergence', 0):.4f}"
+
+            html_content += f"""
+                <tr class="{drift_class}">
+                    <td>{feature}</td>
+                    <td>{details.get("type", "unknown")}</td>
+                    <td>{details.get("test", "unknown").upper()}</td>
+                    <td>{drift_status}</td>
+                    <td>{test_details}</td>
+                </tr>
+            """
+
+        html_content += """
+            </table>
+
+            <h2>ℹ️ About This Report</h2>
+            <p>
+                This report uses intelligent feature-aware drift detection:
+            </p>
+            <ul>
+                <li><strong>Numerical Features:</strong> Kolmogorov-Smirnov (KS) test</li>
+                <li><strong>Categorical Features:</strong> Jensen-Shannon (JS) divergence</li>
+                <li>Only model-relevant features are monitored for efficiency</li>
+                <li>Retraining is recommended when drift share exceeds 30%</li>
+            </ul>
+        </body>
+        </html>
+        """
+
+        with open(output_path, "w") as f:
+            f.write(html_content)
+
         self.logger.info(f"Monitoring report saved to {output_path}")
 
     def should_trigger_retraining(

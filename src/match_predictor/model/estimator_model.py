@@ -12,20 +12,34 @@ from match_predictor.model.base_model import BaseModel
 class EstimatorModel(BaseModel):
     """Model class compatible with scikit-learn like estimators.
 
-    Loads the estimator dynamically based on the configuration file.
+    Loads the estimator dynamically based on the configuration file or ModelConfig object.
     """
 
-    def __init__(self, config_path: str = None):
+    def __init__(self, config_path: str = None, config=None):
         """Initialize the EstimatorModel with optional configuration.
 
         Args:
             config_path: Path to the configuration file (optional)
+            config: ModelConfig object (optional, takes precedence over config_path)
         """
         super().__init__(config_path)
-        estimator_config = self.config.get("estimator", {})
-        module_path = estimator_config.get("module")
-        class_name = estimator_config.get("class_name")
-        params = estimator_config.get("params", {})
+
+        # Handle ModelConfig object from match_predictor.config
+        if config is not None:
+            if hasattr(config, "estimator"):
+                # It's a ModelConfig object
+                estimator_config = config.estimator
+                module_path = estimator_config.module
+                class_name = estimator_config.class_name
+                params = estimator_config.params
+            else:
+                raise ValueError("Config object must have an 'estimator' attribute")
+        else:
+            # Use YAML-based config
+            estimator_config = self.config.get("estimator", {})
+            module_path = estimator_config.get("module")
+            class_name = estimator_config.get("class_name")
+            params = estimator_config.get("params", {})
 
         if not module_path or not class_name:
             raise ValueError("Estimator 'module' and 'class_name' must be specified in the config.")
