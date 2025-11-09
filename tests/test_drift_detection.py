@@ -251,7 +251,7 @@ def test_drift_detector_feature_drift_details(sample_model, sample_reference_dat
     assert "feature3" in details
 
     # Check structure of drift details
-    for feature, detail in details.items():
+    for _feature, detail in details.items():
         assert "type" in detail
         assert "test" in detail
         assert "drift_detected" in detail

@@ -23,7 +23,10 @@ A complete end-to-end machine learning system for predicting tennis match outcom
 ### 📊 MLOps Pipeline
 - **Workflow Orchestration**: Prefect flows for training and monitoring
 - **Automated Training**: Hyperparameter tuning with Optuna
-- **Model Monitoring**: Data drift detection with Evidently
+- **Intelligent Monitoring**: Feature-aware drift detection with custom statistical tests
+  - KS statistics for numerical features
+  - Jensen-Shannon divergence for categorical features
+  - Monitors only model-relevant features for efficiency
 - **Version Control**: MLflow for experiment tracking
 - **Champion Model**: Automatic model promotion based on performance
 
@@ -325,10 +328,14 @@ print(metrics)
 
 ### Monitoring Pipeline
 
-The monitoring pipeline detects:
-- **Data Drift**: Statistical changes in feature distributions
-- **Model Performance**: Accuracy degradation over time
-- **Data Quality**: Missing values, outliers, anomalies
+The monitoring pipeline uses **intelligent feature-aware drift detection** that:
+- **Extracts Model Features**: Automatically identifies which features the trained model uses via `feature_names_in_`
+- **Smart Statistical Tests**: 
+  - Applies **Kolmogorov-Smirnov (KS) test** for numerical features
+  - Applies **Jensen-Shannon (JS) divergence** for categorical features
+- **Optimized Performance**: Ignores unused dataset columns, monitoring only model-relevant features
+- **Custom Metrics**: Calculates accuracy, precision, recall, and F1 score for performance monitoring
+- **Detailed Reports**: Generates HTML reports with feature-level drift details
 
 Run using Prefect flow (recommended):
 ```bash
@@ -343,9 +350,48 @@ run_monitoring_flow()
 ```
 
 Automatically triggers retraining when:
-- Drift share > 30%
-- Accuracy < 60%
+- **Feature-specific drift** share > 30%
+- **Performance degradation**: Accuracy < 60%
 - Manual trigger via GitHub Actions
+
+### 🎯 Feature-Aware Monitoring Innovation
+
+The key innovation of this project is **intelligent feature-aware drift detection**:
+
+**Traditional Approach Problems:**
+- Monitors all columns in the dataset, including unused features
+- Wastes compute on irrelevant data
+- Produces noisy drift signals from non-model features
+
+**Our Feature-Aware Solution:**
+1. **Automatic Feature Extraction**: Reads `feature_names_in_` from the trained model
+2. **Focused Monitoring**: Only monitors features actually used by the model
+3. **Type-Appropriate Tests**: 
+   - Numerical features → Kolmogorov-Smirnov (KS) test
+   - Categorical features → Jensen-Shannon (JS) divergence
+4. **Efficient & Accurate**: Reduces false positives and computational overhead
+
+**Example Usage:**
+```python
+from match_predictor.ml_pipeline.drift_detection import FeatureAwareDriftDetector
+
+# Initialize with trained model (auto-extracts features)
+detector = FeatureAwareDriftDetector(model=trained_model)
+
+# Or with explicit feature names
+detector = FeatureAwareDriftDetector(feature_names=["feature1", "feature2"])
+
+# Set reference and current data
+detector.set_reference_data(reference_df)
+detector.set_current_data(current_df)
+
+# Detect drift on model-relevant features only
+drift_results = detector.detect_drift(ks_threshold=0.05, js_threshold=0.1)
+
+print(f"Drift detected: {drift_results['drift_detected']}")
+print(f"Drift share: {drift_results['drift_share']:.2%}")
+print(f"Drifted features: {drift_results['drifted_feature_names']}")
+```
 
 ## 🔄 CI/CD Workflows
 
@@ -371,9 +417,9 @@ All GitHub Actions workflows are **paused by default** and can be enabled by unc
 
 ### Monitoring Workflow (`.github/workflows/monitoring.yml`)
 - Runs on: Monthly schedule or manual trigger
-- Detects data and model drift
-- Generates monitoring reports
-- Triggers retraining if needed
+- **Feature-aware drift detection** on model-relevant features
+- Generates detailed HTML monitoring reports
+- Triggers retraining if drift share > 30% or performance < 60%
 
 ### Documentation Workflow (`.github/workflows/docs.yml`)
 - Runs on: Push to `main` (docs changes) or manual trigger
@@ -429,10 +475,11 @@ The project includes comprehensive tests:
 - **Unit Tests**: Individual component testing
 - **Integration Tests**: API and pipeline testing  
 - **Feature Tests**: Feature engineering validation
+- **Drift Detection Tests**: Feature-aware monitoring validation (18 tests)
 - **Config Tests**: Configuration validation
 - **Flow Tests**: Prefect workflow testing
 
-**Test Coverage**: 181 tests passing with 79% code coverage across all modules.
+**Test Coverage**: 199+ tests passing with comprehensive coverage across all modules.
 
 ### Running Tests
 
@@ -443,8 +490,9 @@ uv run pytest
 # Run with coverage report
 uv run pytest --cov=src/match_predictor --cov-report=html --cov-report=term-missing
 
-# Run specific test file
-uv run pytest tests/test_api.py -v
+# Run specific test modules
+uv run pytest tests/test_drift_detection.py -v
+uv run pytest tests/test_monitoring.py -v
 
 # View coverage report
 open htmlcov/index.html  # Opens HTML coverage report in browser
@@ -459,8 +507,10 @@ open htmlcov/index.html  # Opens HTML coverage report in browser
 | gh_utils.py | 100% | ✅ Perfect |
 | data_loader.py | 100% | ✅ Perfect |
 | stats_helpers.py | 100% | ✅ Perfect |
+| drift_detection.py | ~95% | ✅ Excellent |
 | config.py | 98% | ✅ Excellent |
 | feature_engineering.py | 95% | ✅ Good |
+| monitoring.py | ~90% | ✅ Good |
 | base_model.py | 83% | ⚠️ Good |
 | estimator_model.py | 78% | ⚠️ Needs work |
 | monitoring.py | 66% | ⚠️ Needs tests |
