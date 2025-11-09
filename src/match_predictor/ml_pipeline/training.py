@@ -1,6 +1,5 @@
 """Model training module."""
 
-import importlib
 import pickle
 from pathlib import Path
 
@@ -14,6 +13,7 @@ from sklearn.model_selection import train_test_split
 from match_predictor.config import ModelConfig
 from match_predictor.ml_pipeline.feature_engineering import FeatureEngineer
 from match_predictor.ml_pipeline.hyperparameter_tuning import HyperparameterTuner
+from match_predictor.model.estimator_model import EstimatorModel
 
 
 class ModelTrainer:
@@ -27,26 +27,23 @@ class ModelTrainer:
         """
         self.config = config or ModelConfig()
         self.logger = logger
-        self.model = None
+        self.estimator_model = None
         self.feature_names = None
         self.training_metrics = {}
 
-    def load_estimator_class(self):
-        """Load the estimator class from configuration."""
-        module_path = self.config.estimator.module
-        class_name = self.config.estimator.class_name
+    @property
+    def model(self):
+        """Get the underlying trained model.
 
-        try:
-            module = importlib.import_module(module_path)
-            estimator_class = getattr(module, class_name)
-            self.logger.info(f"Loaded estimator: {module_path}.{class_name}")
-            return estimator_class
-        except Exception as e:
-            self.logger.error(f"Failed to load estimator: {e}")
-            raise
+        Returns:
+            The trained estimator (e.g., XGBClassifier)
+        """
+        if self.estimator_model is not None:
+            return self.estimator_model.model
+        return None
 
     def train(self, df: pd.DataFrame, tune_hyperparameters: bool = False, log_to_mlflow: bool = True) -> dict:
-        """Train the model.
+        """Train the model using EstimatorModel.
 
         Args:
             df: Training dataframe with features and target
@@ -83,28 +80,37 @@ class ModelTrainer:
         self.logger.info(f"Validation set size: {len(X_val)}")
         self.logger.info(f"Test set size: {len(X_test)}")
 
-        # Load estimator class
-        estimator_class = self.load_estimator_class()
-
         # Hyperparameter tuning
         if tune_hyperparameters:
             self.logger.info("Performing hyperparameter tuning...")
+            # For tuning, we need the estimator class
+            import importlib
+            module = importlib.import_module(self.config.estimator.module)
+            estimator_class = getattr(module, self.config.estimator.class_name)
             tuner = HyperparameterTuner(self.config)
             best_params = tuner.tune(estimator_class, X_train, y_train)
+
+            # Update config with best params for EstimatorModel
+            original_params = self.config.estimator.params
+            self.config.estimator.params = best_params
         else:
             best_params = self.config.estimator.params
 
-        # Train final model
-        self.logger.info("Training final model with best parameters...")
-        self.model = estimator_class(**best_params)
-        self.model.fit(X_train, y_train)
+        # Create and train EstimatorModel
+        self.logger.info("Training final model with EstimatorModel...")
+        self.estimator_model = EstimatorModel(config=self.config)
+        self.estimator_model.fit(X_train, y_train)
+
+        # Restore original params if tuning was done
+        if tune_hyperparameters:
+            self.config.estimator.params = original_params
 
         # Evaluate on validation set
-        val_predictions = self.model.predict(X_val)
+        val_predictions = self.estimator_model.predict(X_val)
         val_accuracy = accuracy_score(y_val, val_predictions)
 
         # Evaluate on test set
-        test_predictions = self.model.predict(X_test)
+        test_predictions = self.estimator_model.predict(X_test)
         test_accuracy = accuracy_score(y_test, test_predictions)
 
         # Store metrics
@@ -117,6 +123,15 @@ class ModelTrainer:
             "hyperparameters": best_params,
             "feature_count": len(self.feature_names),
         }
+
+        self.logger.info(f"Validation accuracy: {val_accuracy:.4f}")
+        self.logger.info(f"Test accuracy: {test_accuracy:.4f}")
+
+        # Log to MLflow if enabled
+        if log_to_mlflow:
+            self._log_to_mlflow(X_train, y_train, X_test, y_test, val_accuracy, test_accuracy, best_params)
+
+        return self.training_metrics
 
         self.logger.info(f"Validation accuracy: {val_accuracy:.4f}")
         self.logger.info(f"Test accuracy: {test_accuracy:.4f}")
@@ -201,7 +216,11 @@ class ModelTrainer:
         with open(path, "rb") as f:
             saved_data = pickle.load(f)
 
-        self.model = saved_data["model"]
+        # Load the underlying model into an EstimatorModel wrapper
+        from match_predictor.model.estimator_model import EstimatorModel
+        self.estimator_model = EstimatorModel(config=self.config)
+        self.estimator_model.model = saved_data["model"]
+
         self.feature_names = saved_data["feature_names"]
         self.training_metrics = saved_data.get("metrics", {})
 

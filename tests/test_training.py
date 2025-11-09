@@ -60,26 +60,28 @@ def test_model_trainer_init_with_config(quick_config):
     assert trainer.config.estimator.params["n_estimators"] == 10
 
 
-def test_model_trainer_load_estimator_class(quick_config):
-    """Test loading estimator class from config."""
+def test_model_trainer_uses_estimator_model(quick_config):
+    """Test that ModelTrainer uses EstimatorModel for training."""
     trainer = ModelTrainer(config=quick_config)
-    estimator_class = trainer.load_estimator_class()
 
-    from xgboost import XGBClassifier
+    # Verify trainer is initialized properly
+    assert trainer.estimator_model is None
+    assert trainer.model is None
 
-    assert estimator_class == XGBClassifier
+    # After training, estimator_model should be set
+    # This will be tested in the training tests
 
 
-def test_model_trainer_load_estimator_class_invalid():
-    """Test loading invalid estimator class raises error."""
+def test_estimator_model_with_invalid_config():
+    """Test EstimatorModel with invalid config raises error."""
+    from match_predictor.model.estimator_model import EstimatorModel
+
     config = ModelConfig()
     config.estimator.module = "invalid_module"
     config.estimator.class_name = "InvalidClass"
 
-    trainer = ModelTrainer(config=config)
-
-    with pytest.raises(Exception):
-        trainer.load_estimator_class()
+    with pytest.raises((ModuleNotFoundError, ImportError)):
+        EstimatorModel(config=config)
 
 
 @patch("match_predictor.ml_pipeline.training.FeatureEngineer")
